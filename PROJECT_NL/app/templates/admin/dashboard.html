@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Next Level Rent - Admin Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+</head>
+<body>
+    <div style="color:#fff; padding:40px; text-align:center;">
+        <h1 style="color:#c77dff;">ADMIN-Dashboard</h1>
+        <p>Halo Admin, {{ user.name }} 👋</p>
+        <form action="{{ url_for('auth.logout') }}" method="POST" style="margin-top:20px;">
+            <button type="submit" class="submit-btn" style="width:auto; padding:10px 24px;">Logout</button>
+        </form>
+    </div>
+</body>
+</html>
