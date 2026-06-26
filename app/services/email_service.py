@@ -24,6 +24,17 @@ def send_welcome_email(to_email: str, name: str):
     return resend.Emails.send(params)
 
 
+def send_otp_email(to_email: str, name: str, otp_code: str):
+    """Dikirim saat Sign Up, untuk verifikasi email lewat kode OTP 6 digit."""
+    params = {
+        "from": _from_address(),
+        "to": [to_email],
+        "subject": f"{otp_code} adalah kode verifikasi Next Level Rent kamu",
+        "html": render_template("emails/otp_verification.html", name=name, otp_code=otp_code),
+    }
+    return resend.Emails.send(params)
+
+
 def send_reservation_confirmation_email(to_email: str, name: str, reservation):
     """Dikirim setelah Make Room Reservation berhasil & payment dibuat."""
     params = {

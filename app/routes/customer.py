@@ -18,8 +18,25 @@ def dashboard():
 @login_required
 def view_room_schedule():
     """Use case: View Room Schedule + Choose Available Room."""
-    rooms = Room.query.filter_by(status="available").all()
-    return render_template("customer/rooms.html", rooms=rooms)
+    selected_env = request.args.get("environment", "regular")
+
+    rooms = (
+        Room.query.filter_by(environment=selected_env)
+        .filter(Room.status != "inactive")
+        .order_by(Room.room_code.asc())
+        .all()
+    )
+
+    # Hitung status real-time (available/busy + sisa menit) sekali di sini,
+    # supaya template tidak perlu panggil method berulang-ulang per render.
+    rooms_with_status = [(room, room.current_status()) for room in rooms]
+
+    return render_template(
+        "customer/rooms.html",
+        rooms_with_status=rooms_with_status,
+        selected_env=selected_env,
+        current_user=current_user,
+    )
 
 
 @customer_bp.route("/reservations", methods=["GET"])

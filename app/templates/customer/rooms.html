@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Next Level Rent - Pilih Room</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/rooms.css') }}">
+</head>
+<body>
+    <div class="page-frame">
+        <nav class="navbar">
+            <span class="navbar-brand">NEXT LEVEL</span>
+            <div class="navbar-links">
+                <a href="{{ url_for('customer.dashboard') }}" class="nav-link">Lounge</a>
+                <a href="{{ url_for('customer.view_room_schedule') }}" class="nav-link active">Booking</a>
+                <a href="{{ url_for('customer.view_reservation') }}" class="nav-link">Reservasi</a>
+            </div>
+        </nav>
+
+        <div class="rooms-body">
+            <header class="rooms-header">
+                <h1>Pick Your Battle Station</h1>
+                <p>Whether you're grinding ranked, running customs, or just chilling with the squad.</p>
+            </header>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash flash-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="rooms-layout">
+                <aside class="env-sidebar">
+                    <p class="env-sidebar-title">Environments</p>
+                    <a href="{{ url_for('customer.view_room_schedule', environment='regular') }}"
+                       class="env-item {{ 'active' if selected_env == 'regular' else '' }}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/></svg>
+                        Regular
+                    </a>
+                    <a href="{{ url_for('customer.view_room_schedule', environment='regular_pro') }}"
+                       class="env-item {{ 'active' if selected_env == 'regular_pro' else '' }}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="1.5"/></svg>
+                        Regular Pro
+                    </a>
+                    <a href="{{ url_for('customer.view_room_schedule', environment='vip') }}"
+                       class="env-item {{ 'active' if selected_env == 'vip' else '' }}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="6" y="2" width="12" height="20" rx="2" stroke="currentColor" stroke-width="1.5"/></svg>
+                        VIP
+                    </a>
+                </aside>
+
+                <main class="room-grid-wrap">
+                    {% if rooms_with_status %}
+                    <div class="room-grid">
+                        {% for room, live in rooms_with_status %}
+                        <div class="room-card">
+                            <div class="room-thumb">
+                                {% if room.image_url %}
+                                    <img src="{{ room.image_url }}" alt="{{ room.name }}">
+                                {% else %}
+                                    <div class="room-thumb-placeholder">{{ room.console_type }}</div>
+                                {% endif %}
+
+                                {% if live.state == 'available' %}
+                                    <span class="room-status status-available"><i class="dot"></i>Available</span>
+                                {% elif live.state == 'busy' %}
+                                    <span class="room-status status-busy"><i class="dot"></i>Busy ({{ live.minutes_left }}m left)</span>
+                                {% elif live.state == 'maintenance' %}
+                                    <span class="room-status status-maintenance"><i class="dot"></i>Maintenance</span>
+                                {% else %}
+                                    <span class="room-status status-inactive"><i class="dot"></i>Inactive</span>
+                                {% endif %}
+                            </div>
+
+                            <div class="room-info">
+                                <div class="room-title-row">
+                                    <span class="room-code">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/></svg>
+                                        {{ room.room_code }}
+                                    </span>
+                                    <span class="room-price">{{ "%.0f"|format(room.price_per_hour / 1000) }}k/hr</span>
+                                </div>
+                                <p class="room-env-label">{{ room.environment_label }}</p>
+
+                                <ul class="room-facilities">
+                                    <li>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/></svg>
+                                        {{ room.game_count }} Games
+                                    </li>
+                                    <li>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/></svg>
+                                        {{ room.room_type_label }}
+                                    </li>
+                                    {% if room.seating_type %}
+                                    <li>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 18v-7a4 4 0 014-4h8a4 4 0 014 4v7" stroke="currentColor" stroke-width="1.5"/></svg>
+                                        {{ room.seating_type }}
+                                    </li>
+                                    {% endif %}
+                                </ul>
+
+                                {% if live.state == 'available' %}
+                                    <button type="button" class="room-action-btn ready"
+                                        onclick="openBookingModal('{{ room.id }}', '{{ room.room_code }} - {{ room.name }}', {{ room.price_per_hour }})">
+                                        Ready
+                                    </button>
+                                {% else %}
+                                    <button type="button" class="room-action-btn busy" disabled>
+                                        {% if live.state == 'busy' %}Busy{% elif live.state == 'maintenance' %}Maintenance{% else %}Unavailable{% endif %}
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <p>Belum ada room di kategori ini.</p>
+                    </div>
+                    {% endif %}
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <div id="booking-modal" class="modal-overlay">
+        <div class="modal-card">
+            <h3 id="modal-room-name">Reservasi Room</h3>
+            <form id="booking-form" action="{{ url_for('customer.make_reservation') }}" method="POST">
+                <input type="hidden" name="room_id" id="modal-room-id">
+
+                <label>Tanggal &amp; Jam Mulai</label>
+                <input type="datetime-local" name="start_time" required>
+
+                <label>Durasi (jam)</label>
+                <input type="number" name="duration_hours" id="modal-duration" min="1" max="12" step="1" value="1" required>
+
+                <p class="modal-total">Total: <strong id="modal-total-price">Rp 0</strong></p>
+
+                <div class="modal-actions">
+                    <button type="button" class="modal-cancel-btn" onclick="closeBookingModal()">Batal</button>
+                    <button type="submit" class="modal-confirm-btn">Reservasi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/rooms.js') }}"></script>
+</body>
+</html>

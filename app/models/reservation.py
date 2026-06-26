@@ -53,6 +53,7 @@ class Reservation(db.Model):
     # Relasi
     room = db.relationship("Room", back_populates="reservations")
     customer = db.relationship("User", back_populates="reservations", foreign_keys=[customer_id])
+    created_by_admin = db.relationship("User", foreign_keys=[created_by_admin_id])
     payment = db.relationship("Payment", back_populates="reservation", uselist=False)
 
     def to_dict(self):

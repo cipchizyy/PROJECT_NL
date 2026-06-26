@@ -2,16 +2,40 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Next Level Rent - Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
 </head>
 <body>
-    <div style="color:#fff; padding:40px; text-align:center;">
-        <h1 style="color:#c77dff;">CUST-Dashboard</h1>
-        <p>Halo, {{ user.name }} 👋</p>
-        <form action="{{ url_for('auth.logout') }}" method="POST" style="margin-top:20px;">
-            <button type="submit" class="submit-btn" style="width:auto; padding:10px 24px;">Logout</button>
-        </form>
-    </div>
+    <nav class="navbar">
+        <span class="navbar-brand">NEXT LEVEL</span>
+        <div class="navbar-links">
+            <a href="{{ url_for('customer.dashboard') }}" class="nav-link active">Lounge</a>
+            <a href="{{ url_for('customer.view_room_schedule') }}" class="nav-link">Booking</a>
+            <a href="{{ url_for('customer.view_reservation') }}" class="nav-link">Reservasi</a>
+        </div>
+        <div class="navbar-menu">
+            <span class="navbar-user">Hi, {{ user.name }}</span>
+            <form action="{{ url_for('auth.logout') }}" method="POST" class="navbar-logout-form">
+                <button type="submit" class="navbar-logout-btn">Logout</button>
+            </form>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <span class="hero-badge">Level up your experience</span>
+            <h1 class="hero-title">
+                Ascend to the <span class="accent">Next</span> Dimension
+            </h1>
+            <a href="{{ url_for('customer.view_room_schedule') }}" class="hero-cta">
+                Book Your Station
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </a>
+        </div>
+    </section>
 </body>
 </html>

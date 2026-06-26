@@ -1,0 +1,184 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+body {
+    background: #0d0d12;
+    min-height: 100vh;
+}
+
+/* ===== Navbar ===== */
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    background: #0a0a0e;
+}
+
+.navbar-brand {
+    color: #c77dff;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-shadow: 0 0 16px rgba(199, 125, 255, 0.5);
+}
+
+.navbar-menu {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.navbar-links {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+}
+
+.nav-link {
+    color: #8a8a9a;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    padding-bottom: 4px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.nav-link:hover {
+    color: #d9a8ff;
+}
+
+.nav-link.active {
+    color: #c77dff;
+    border-bottom-color: #c77dff;
+}
+
+.navbar-user {
+    color: #b8b8c8;
+    font-size: 13px;
+}
+
+.navbar-logout-form {
+    display: inline;
+}
+
+.navbar-logout-btn {
+    background: transparent;
+    border: 1px solid #2c2c38;
+    color: #b8b8c8;
+    padding: 7px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.navbar-logout-btn:hover {
+    border-color: #c77dff;
+    color: #c77dff;
+}
+
+/* ===== Hero ===== */
+.hero {
+    position: relative;
+    min-height: 600px;
+    display: flex;
+    align-items: center;
+    padding: 0 60px;
+    overflow: hidden;
+
+    /* Placeholder gradient -- ganti baris ini dengan:
+       background: url('/static/img/hero-lounge.jpg') center/cover no-repeat;
+       begitu foto sudah tersedia. */
+    background:
+        radial-gradient(circle at 50% 40%, rgba(199, 125, 255, 0.25) 0%, transparent 55%),
+        linear-gradient(160deg, #1a0e22 0%, #0d0d12 55%, #190a14 100%);
+}
+
+/* Garis-garis neon dekoratif, dibuat dari CSS biar gak butuh aset gambar */
+.hero::before,
+.hero::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(199, 125, 255, 0.35), transparent);
+}
+
+.hero::before { left: 12%; }
+.hero::after { right: 12%; }
+
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(13, 13, 18, 0.6) 0%, rgba(13, 13, 18, 0.15) 60%);
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 560px;
+}
+
+.hero-badge {
+    display: inline-block;
+    border: 1px solid rgba(199, 125, 255, 0.4);
+    color: #d9a8ff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+}
+
+.hero-title {
+    color: #f0eaf5;
+    font-size: 42px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 32px;
+}
+
+.hero-title .accent {
+    color: #c77dff;
+    text-shadow: 0 0 20px rgba(199, 125, 255, 0.5);
+}
+
+.hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: #f0589c;
+    color: #1a0e22;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 14px 28px;
+    border-radius: 8px;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.hero-cta:hover {
+    opacity: 0.9;
+    transform: translateX(2px);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 640px) {
+    .hero {
+        padding: 0 24px;
+        min-height: 480px;
+    }
+    .hero-title {
+        font-size: 30px;
+    }
+}

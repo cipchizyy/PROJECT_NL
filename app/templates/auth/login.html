@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Next Level Rent - Login</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='../static/css/auth.css') }}">
 </head>
 <body>
     <div class="auth-wrapper">
@@ -32,7 +32,10 @@
                 <label>Email Address</label>
                 <input type="email" name="email" placeholder="email@gmail.com" required>
 
-                <label>Passcode</label>
+                <label class="label-row">
+                    <span>Passcode</span>
+                    <a href="#" class="forgot-link">Forgot?</a>
+                </label>
                 <input type="password" name="passcode" placeholder="••••••" required minlength="6">
 
                 <button type="submit" class="submit-btn">LOGIN</button>

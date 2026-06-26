@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Next Level Rent - Verifikasi Email</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/otp.css') }}">
+</head>
+<body>
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            <h1 class="brand">NEXT LEVEL</h1>
+            <p class="tagline">PREMIUM PLAY STATION</p>
+
+            <h2 class="otp-title">Verifikasi Email</h2>
+            <p class="otp-subtitle">
+                Kode 6 digit telah dikirim ke<br>
+                <strong>{{ email }}</strong>
+            </p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash flash-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form id="otp-form" action="{{ url_for('auth.verify_otp') }}" method="POST">
+                <div class="otp-inputs">
+                    <input type="text" name="digit1" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code" required autofocus>
+                    <input type="text" name="digit2" maxlength="1" inputmode="numeric" pattern="[0-9]" required>
+                    <input type="text" name="digit3" maxlength="1" inputmode="numeric" pattern="[0-9]" required>
+                    <input type="text" name="digit4" maxlength="1" inputmode="numeric" pattern="[0-9]" required>
+                    <input type="text" name="digit5" maxlength="1" inputmode="numeric" pattern="[0-9]" required>
+                    <input type="text" name="digit6" maxlength="1" inputmode="numeric" pattern="[0-9]" required>
+                </div>
+
+                <button type="submit" class="submit-btn">VERIFIKASI</button>
+            </form>
+
+            <form id="resend-form" action="{{ url_for('auth.resend_otp') }}" method="POST">
+                <button type="submit" id="resend-btn" class="resend-btn">Kirim ulang kode (<span id="countdown">60</span>s)</button>
+            </form>
+
+            <p class="contact-admin">
+                Need technical support? Contact Admin
+                {% if config.ADMIN_CONTACT_EMAIL %}
+                    <a href="mailto:{{ config.ADMIN_CONTACT_EMAIL }}">{{ config.ADMIN_CONTACT_EMAIL }}</a>
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/otp.js') }}"></script>
+</body>
+</html>

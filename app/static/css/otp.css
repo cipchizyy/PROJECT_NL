@@ -1,0 +1,61 @@
+.otp-title {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    margin-top: 8px;
+}
+
+.otp-subtitle {
+    color: #8a8a9a;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 8px 0 24px;
+}
+
+.otp-subtitle strong {
+    color: #c77dff;
+}
+
+.otp-inputs {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.otp-inputs input {
+    width: 44px;
+    height: 52px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    background: #1f1f29;
+    border: 1px solid #2c2c38;
+    border-radius: 8px;
+    color: #fff;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.otp-inputs input:focus {
+    border-color: #c77dff;
+}
+
+.resend-btn {
+    margin-top: 18px;
+    background: transparent;
+    border: none;
+    color: #8a8a9a;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.resend-btn:not(:disabled) {
+    color: #c77dff;
+    cursor: pointer;
+}
+
+.resend-btn:disabled {
+    color: #5a5a6a;
+    cursor: not-allowed;
+}
