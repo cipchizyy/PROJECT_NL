@@ -30,7 +30,7 @@ def send_otp_email(to_email: str, name: str, otp_code: str):
         "from": _from_address(),
         "to": [to_email],
         "subject": f"{otp_code} adalah kode verifikasi Next Level Rent kamu",
-        "html": render_template("emails/otp_verification.html", name=name, otp_code=otp_code),
+        "html": render_template("emails/verify_otp.html", name=name, otp_code=otp_code),
     }
     return resend.Emails.send(params)
 

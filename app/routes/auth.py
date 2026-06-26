@@ -94,7 +94,7 @@ def verify_otp_page():
         session.pop("pending_verification_user_id", None)
         return redirect(url_for("auth.login_page"))
 
-    return render_template("auth/verify_otp.html", email=user.email)
+    return render_template("emails/verify_otp.html", email=user.email)
 
 
 @auth_bp.route("/verify-otp", methods=["POST"])
@@ -141,8 +141,11 @@ def verify_otp():
     except Exception as e:
         print(f"[WARN] Gagal mengirim welcome email: {e}")
 
+    # Sesudah
     login_user(user)
     flash(f"Email berhasil diverifikasi. Selamat datang, {user.name}!", "success")
+    if user.is_admin:
+        return redirect(url_for("admin.dashboard"))
     return redirect(url_for("customer.dashboard"))
 
 
