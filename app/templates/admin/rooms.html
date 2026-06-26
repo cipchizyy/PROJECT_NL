@@ -1,348 +1,154 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Manage Room – Next Level</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_dashboard.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_rooms.css') }}">
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Next Level Rent - Manage Room</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
 <body>
+    <nav class="navbar">
+        <span class="navbar-brand">NEXT LEVEL <span class="navbar-admin-tag">ADMIN</span></span>
+        <div class="navbar-links">
+            <a href="{{ url_for('admin.dashboard') }}" class="nav-link">Dashboard</a>
+            <a href="{{ url_for('admin.manage_room') }}" class="nav-link active">Manage Room</a>
+            <a href="{{ url_for('admin.create_sales_report') }}" class="nav-link">Sales Report</a>
+        </div>
+        <div class="navbar-menu">
+            <span class="navbar-user">Hi, {{ current_user.name }}</span>
+            <form action="{{ url_for('auth.logout') }}" method="POST" class="navbar-logout-form">
+                <button type="submit" class="navbar-logout-btn">Logout</button>
+            </form>
+        </div>
+    </nav>
 
-<aside class="sidebar">
-  <div class="sidebar-top">
-    <div class="sidebar-brand">
-      <span class="brand-label">Dashboard Admin</span>
-      <span class="brand-sub">Admin Hub</span>
-    </div>
-  </div>
-  <nav class="sidebar-nav">
-    <a href="{{ url_for('admin.dashboard') }}" class="nav-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-      Dashboard
-    </a>
-    <a href="#" class="nav-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-      Reservations
-    </a>
-    <a href="{{ url_for('admin.manage_room') }}" class="nav-item active">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-      Manage Room
-    </a>
-    <a href="#" class="nav-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      Generate Reports
-    </a>
-  </nav>
-  <div class="sidebar-user">
-    <div class="user-avatar">{{ current_user.name[0].upper() }}</div>
-    <div class="user-info">
-      <span class="user-name">{{ current_user.name }}</span>
-      <span class="user-role">ADMIN</span>
-    </div>
-  </div>
-</aside>
+    <div class="admin-body">
+        <h1 class="admin-page-title">Manage Room</h1>
 
-<main class="main">
-  <header class="topbar">
-    <h1 class="brand-title">NEXT LEVEL</h1>
-    <div class="topbar-right">
-      <div class="status-badge">
-        <span class="status-dot"></span>
-        ALL NODES OPERATIONAL
-      </div>
-    </div>
-  </header>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
 
-  <div class="page-header">
-    <div>
-      <p class="page-eyebrow">ADMIN – MANAGE ALL ROOM</p>
-      <h2 class="page-title">Room Inventory</h2>
-    </div>
-    <div class="filter-tabs" id="filterTabs">
-      <button class="filter-btn active" data-filter="all">All Rooms</button>
-      <button class="filter-btn" data-filter="regular">Regular</button>
-      <button class="filter-btn" data-filter="regular_pro">Regular Pro</button>
-      <button class="filter-btn" data-filter="vip">VIP</button>
-    </div>
-  </div>
+        <div class="admin-toolbar">
+            <button type="button" class="btn-primary" onclick="openRoomModal()">+ Tambah Room</button>
+        </div>
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-        <div class="flash flash-{{ category }}">{{ message }}</div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
-
-  <div class="rooms-grid" id="roomsGrid">
-
-    <!-- Add Card -->
-    <div class="room-card add-card" id="btnAddRoom">
-      <div class="add-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      </div>
-      <span class="add-label">New Room</span>
-      <span class="add-sub">Expand your inventory</span>
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Nama</th>
+                        <th>Console</th>
+                        <th>Environment</th>
+                        <th>Harga/Jam</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for room in rooms %}
+                    <tr>
+                        <td>{{ room.room_code }}</td>
+                        <td>{{ room.name }}</td>
+                        <td>{{ room.console_type }}</td>
+                        <td>{{ room.environment_label }}</td>
+                        <td>Rp {{ "{:,.0f}".format(room.price_per_hour) }}</td>
+                        <td>
+                            <span class="admin-room-status status-{{ room.status }}">{{ room.status }}</span>
+                        </td>
+                        <td>
+                            <button type="button" class="table-action-btn edit"
+                                onclick='openRoomModal({{ room.to_dict()|tojson }})'>Edit</button>
+                            <form action="{{ url_for('admin.delete_room', room_id=room.id) }}" method="POST"
+                                  style="display:inline;" onsubmit="return confirm('Hapus room {{ room.room_code }}?');">
+                                <button type="submit" class="table-action-btn delete">Hapus</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align:center; color:#5a5a6a; padding:32px;">Belum ada room.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    {% for room in rooms %}
-    {% set ls = room.current_status() %}
-    <div class="room-card" data-env="{{ room.environment }}">
-      <div class="room-img-wrap">
-        {% if room.image_url %}
-          <img src="{{ room.image_url }}" alt="{{ room.room_code }}" class="room-img"/>
-        {% else %}
-          <div class="room-img-placeholder">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          </div>
-        {% endif %}
-        <div class="room-env-badge">{{ room.environment_label }}</div>
-        <div class="room-price-badge">{{ "{:,.0f}".format(room.price_per_hour | float) }}k/hr</div>
-      </div>
-      <div class="room-info">
-        <div class="room-code">{{ room.room_code }}</div>
-        <ul class="room-features">
-          <li>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
-            {{ room.game_count }} Games
-          </li>
-          <li>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
-            {{ room.room_type_label }}
-          </li>
-          {% if room.seating_type %}
-          <li>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/></svg>
-            {{ room.seating_type }}
-          </li>
-          {% endif %}
-        </ul>
-        <div class="room-status-row">
-          <span class="live-badge live-{{ ls.state }}">
-            {{ ls.state | upper }}{% if ls.minutes_left %} ({{ ls.minutes_left }}m){% endif %}
-          </span>
-        </div>
-        <div class="room-actions">
-          <button class="btn-action btn-edit" onclick="openEdit(
-            '{{ room.id }}',
-            '{{ room.room_code }}',
-            '{{ room.name }}',
-            '{{ room.console_type }}',
-            '{{ room.environment }}',
-            {{ room.price_per_hour }},
-            {{ room.game_count }},
-            '{{ room.room_type }}',
-            '{{ room.seating_type or '' }}',
-            '{{ room.description or '' }}',
-            '{{ room.status }}'
-          )">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            Edit
-          </button>
-          <button class="btn-action btn-delete" onclick="confirmDelete('{{ room.id }}', '{{ room.room_code }}')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M9 6V4h6v2"/></svg>
-            Delete
-          </button>
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-</main>
+    <div id="room-modal" class="modal-overlay">
+        <div class="modal-card" style="max-width:480px;">
+            <h3 id="room-modal-title">Tambah Room</h3>
+            <form id="room-form" method="POST" enctype="multipart/form-data">
+                <div class="admin-form-grid">
+                    <div>
+                        <label>Room Code</label>
+                        <input type="text" name="room_code" id="f-room_code" placeholder="R-07" required>
+                    </div>
+                    <div>
+                        <label>Nama</label>
+                        <input type="text" name="name" id="f-name" placeholder="Room 07" required>
+                    </div>
+                    <div>
+                        <label>Console</label>
+                        <input type="text" name="console_type" id="f-console_type" placeholder="PS5" required>
+                    </div>
+                    <div>
+                        <label>Harga/Jam</label>
+                        <input type="number" name="price_per_hour" id="f-price_per_hour" placeholder="10000" required>
+                    </div>
+                    <div>
+                        <label>Environment</label>
+                        <select name="environment" id="f-environment">
+                            <option value="regular">Regular</option>
+                            <option value="regular_pro">Regular Pro</option>
+                            <option value="vip">VIP</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Status</label>
+                        <select name="status" id="f-status">
+                            <option value="available">Available</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Jumlah Game</label>
+                        <input type="number" name="game_count" id="f-game_count" placeholder="13">
+                    </div>
+                    <div>
+                        <label>Tipe Ruangan</label>
+                        <select name="room_type" id="f-room_type">
+                            <option value="non_smoking">Non-Smoking</option>
+                            <option value="smoking">Smoking</option>
+                        </select>
+                    </div>
+                    <div class="full-width">
+                        <label>Seating Type</label>
+                        <input type="text" name="seating_type" id="f-seating_type" placeholder="Cozy Beanbag Seating">
+                    </div>
+                    <div class="full-width">
+                        <label>Foto Room</label>
+                        <input type="file" name="image" id="f-image" accept="image/*">
+                    </div>
+                </div>
 
-<!-- ══ MODAL ADD ══ -->
-<div class="modal-overlay" id="modalAdd">
-  <div class="modal">
-    <div class="modal-header">
-      <h3 class="modal-title">Add New Room</h3>
-      <button class="modal-close" onclick="closeModal('modalAdd')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+                <div class="modal-actions">
+                    <button type="button" class="modal-cancel-btn" onclick="closeRoomModal()">Batal</button>
+                    <button type="submit" class="modal-confirm-btn">Simpan</button>
+                </div>
+            </form>
+        </div>
     </div>
-    <form action="{{ url_for('admin.create_room') }}" method="POST" enctype="multipart/form-data" class="modal-form">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Kode Room</label>
-          <input type="text" name="room_code" placeholder="e.g. R-01" required/>
-        </div>
-        <div class="form-group">
-          <label>Nama Room</label>
-          <input type="text" name="name" placeholder="e.g. Room Alpha" required/>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Tipe Konsol</label>
-          <input type="text" name="console_type" placeholder="e.g. PS5, PS4 Pro" required/>
-        </div>
-        <div class="form-group">
-          <label>Environment</label>
-          <select name="environment" required>
-            <option value="regular">Regular</option>
-            <option value="regular_pro">Regular Pro</option>
-            <option value="vip">VIP</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Harga / Jam (Rp)</label>
-          <input type="number" name="price_per_hour" placeholder="e.g. 10000" required min="0"/>
-        </div>
-        <div class="form-group">
-          <label>Jumlah Game</label>
-          <input type="number" name="game_count" placeholder="e.g. 13" min="0" value="0"/>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Tipe Ruangan</label>
-          <select name="room_type">
-            <option value="non_smoking">Non-Smoking Room</option>
-            <option value="smoking">Smoking Room</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Tipe Seating</label>
-          <input type="text" name="seating_type" placeholder="e.g. Cozy Beanbag Seating"/>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Status</label>
-          <select name="status">
-            <option value="available">Available</option>
-            <option value="maintenance">Maintenance</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Deskripsi (opsional)</label>
-        <textarea name="description" rows="2" placeholder="Fasilitas tambahan..."></textarea>
-      </div>
-      <div class="form-group">
-        <label>Foto Room</label>
-        <div class="upload-area" id="uploadArea">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <span>Drag & drop atau <label for="imgInput" class="upload-link">pilih file</label></span>
-          <input type="file" id="imgInput" name="image" accept="image/*" style="display:none"/>
-          <span class="upload-hint">PNG, JPG, WEBP – maks 5MB</span>
-        </div>
-        <img id="imgPreview" class="img-preview" src="" alt="preview"/>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn-cancel" onclick="closeModal('modalAdd')">Batal</button>
-        <button type="submit" class="btn-submit">Tambah Room</button>
-      </div>
-    </form>
-  </div>
-</div>
 
-<!-- ══ MODAL EDIT ══ -->
-<div class="modal-overlay" id="modalEdit">
-  <div class="modal">
-    <div class="modal-header">
-      <h3 class="modal-title">Edit Room</h3>
-      <button class="modal-close" onclick="closeModal('modalEdit')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <form id="editForm" method="POST" enctype="multipart/form-data" class="modal-form">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Kode Room</label>
-          <input type="text" name="room_code" id="editCode" required/>
-        </div>
-        <div class="form-group">
-          <label>Nama Room</label>
-          <input type="text" name="name" id="editName" required/>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Tipe Konsol</label>
-          <input type="text" name="console_type" id="editConsole" required/>
-        </div>
-        <div class="form-group">
-          <label>Environment</label>
-          <select name="environment" id="editEnv">
-            <option value="regular">Regular</option>
-            <option value="regular_pro">Regular Pro</option>
-            <option value="vip">VIP</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Harga / Jam (Rp)</label>
-          <input type="number" name="price_per_hour" id="editPrice" required min="0"/>
-        </div>
-        <div class="form-group">
-          <label>Jumlah Game</label>
-          <input type="number" name="game_count" id="editGameCount" min="0"/>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Tipe Ruangan</label>
-          <select name="room_type" id="editRoomType">
-            <option value="non_smoking">Non-Smoking Room</option>
-            <option value="smoking">Smoking Room</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Tipe Seating</label>
-          <input type="text" name="seating_type" id="editSeating"/>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Status</label>
-          <select name="status" id="editStatus">
-            <option value="available">Available</option>
-            <option value="maintenance">Maintenance</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Deskripsi</label>
-        <textarea name="description" id="editDesc" rows="2"></textarea>
-      </div>
-      <div class="form-group">
-        <label>Ganti Foto (opsional)</label>
-        <input type="file" name="image" accept="image/*" class="file-input"/>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn-cancel" onclick="closeModal('modalEdit')">Batal</button>
-        <button type="submit" class="btn-submit">Simpan</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- ══ MODAL DELETE ══ -->
-<div class="modal-overlay" id="modalDelete">
-  <div class="modal modal-sm">
-    <div class="modal-header">
-      <h3 class="modal-title">Hapus Room</h3>
-      <button class="modal-close" onclick="closeModal('modalDelete')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <p class="delete-msg">Yakin ingin menghapus room <strong id="deleteRoomName"></strong>? Tindakan ini tidak bisa dibatalkan.</p>
-    <div class="modal-footer">
-      <button type="button" class="btn-cancel" onclick="closeModal('modalDelete')">Batal</button>
-      <form id="deleteForm" method="POST">
-        <button type="submit" class="btn-danger">Hapus</button>
-      </form>
-    </div>
-  </div>
-</div>
-
-<script src="{{ url_for('static', filename='js/admin_rooms.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin_rooms.js') }}"></script>
 </body>
 </html>

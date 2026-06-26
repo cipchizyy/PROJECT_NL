@@ -1,7 +1,8 @@
 from functools import wraps
 from datetime import date
+
 from sqlalchemy import func
-from flask import Blueprint, render_template, request, jsonify, abort
+from flask import Blueprint, render_template, request, jsonify, abort, flash, redirect, url_for
 from flask_login import login_required, current_user
 
 from app.extensions import db
@@ -25,24 +26,25 @@ def admin_required(f):
 @admin_bp.route("/dashboard")
 @admin_required
 def dashboard():
-    # Stats
+    # --- Stats ringkas untuk admin dashboard ---
     total_rooms = Room.query.count()
     available_rooms = Room.query.filter_by(status="available").count()
-    active_bookings = Reservation.query.filter_by(status="active").count()
+    active_bookings = Reservation.query.filter_by(status="confirmed").count()
 
-    # Daily revenue
+    # Revenue hari ini, dihitung dari Reservation yang sudah confirmed/completed
     today = date.today()
     daily_revenue = db.session.query(func.sum(Reservation.total_price)).filter(
         func.date(Reservation.created_at) == today,
-        Reservation.status.in_(["active", "completed"])
+        Reservation.status.in_(["confirmed", "completed"]),
     ).scalar()
     daily_revenue = float(daily_revenue or 0)
 
-    # Rooms untuk grid
+    # Rooms untuk grid ringkas di dashboard
     rooms = Room.query.limit(6).all()
 
     return render_template(
         "admin/dashboard.html",
+        user=current_user,
         total_rooms=total_rooms,
         available_rooms=available_rooms,
         active_bookings=active_bookings,
@@ -55,26 +57,6 @@ def dashboard():
 @admin_required
 def manage_room():
     """Use case: Manage Room."""
-    rooms = Room.query.all()
-    return render_template("admin/rooms.html", rooms=rooms)
-
-
-# Ganti fungsi create_room, manage_room di admin.py
-# dan tambahkan edit_room & delete_room
-
-@admin_bp.route("/rooms", methods=["GET"])
-@admin_required
-def manage_room():
-    rooms = Room.query.order_by(Room.room_code).all()
-    return render_template("admin/rooms.html", rooms=rooms)
-
-
-# Ganti fungsi create_room, manage_room di admin.py
-# dan tambahkan edit_room & delete_room
-
-@admin_bp.route("/rooms", methods=["GET"])
-@admin_required
-def manage_room():
     rooms = Room.query.order_by(Room.room_code).all()
     return render_template("admin/rooms.html", rooms=rooms)
 
@@ -83,20 +65,21 @@ def manage_room():
 @admin_required
 def create_room():
     room = Room(
-        room_code     = request.form.get("room_code"),
-        name          = request.form.get("name"),
-        console_type  = request.form.get("console_type"),
-        environment   = request.form.get("environment", "regular"),
-        price_per_hour= request.form.get("price_per_hour"),
-        game_count    = int(request.form.get("game_count", 0)),
-        room_type     = request.form.get("room_type", "non_smoking"),
-        seating_type  = request.form.get("seating_type") or None,
-        description   = request.form.get("description") or None,
-        status        = request.form.get("status", "available"),
+        room_code=request.form.get("room_code"),
+        name=request.form.get("name"),
+        console_type=request.form.get("console_type"),
+        environment=request.form.get("environment", "regular"),
+        price_per_hour=request.form.get("price_per_hour"),
+        game_count=int(request.form.get("game_count", 0)),
+        room_type=request.form.get("room_type", "non_smoking"),
+        seating_type=request.form.get("seating_type") or None,
+        description=request.form.get("description") or None,
+        status=request.form.get("status", "available"),
     )
     db.session.add(room)
     db.session.commit()
 
+    # Upload foto room ke Cloudinary kalau ada
     file = request.files.get("image")
     if file and file.filename:
         image_url = upload_room_image(file, room.id)
@@ -110,18 +93,19 @@ def create_room():
 @admin_bp.route("/rooms/<string:room_id>/edit", methods=["POST"])
 @admin_required
 def edit_room(room_id):
+    """Use case: Update Room (bagian dari Manage Room)."""
     room = Room.query.get_or_404(room_id)
 
-    room.room_code     = request.form.get("room_code", room.room_code)
-    room.name          = request.form.get("name", room.name)
-    room.console_type  = request.form.get("console_type", room.console_type)
-    room.environment   = request.form.get("environment", room.environment)
-    room.price_per_hour= request.form.get("price_per_hour", room.price_per_hour)
-    room.game_count    = int(request.form.get("game_count", room.game_count))
-    room.room_type     = request.form.get("room_type", room.room_type)
-    room.seating_type  = request.form.get("seating_type") or room.seating_type
-    room.description   = request.form.get("description") or room.description
-    room.status        = request.form.get("status", room.status)
+    room.room_code = request.form.get("room_code", room.room_code)
+    room.name = request.form.get("name", room.name)
+    room.console_type = request.form.get("console_type", room.console_type)
+    room.environment = request.form.get("environment", room.environment)
+    room.price_per_hour = request.form.get("price_per_hour", room.price_per_hour)
+    room.game_count = int(request.form.get("game_count", room.game_count))
+    room.room_type = request.form.get("room_type", room.room_type)
+    room.seating_type = request.form.get("seating_type") or room.seating_type
+    room.description = request.form.get("description") or room.description
+    room.status = request.form.get("status", room.status)
 
     file = request.files.get("image")
     if file and file.filename:
@@ -136,6 +120,7 @@ def edit_room(room_id):
 @admin_bp.route("/rooms/<string:room_id>/delete", methods=["POST"])
 @admin_required
 def delete_room(room_id):
+    """Use case: Delete Room (bagian dari Manage Room)."""
     room = Room.query.get_or_404(room_id)
     code = room.room_code
     db.session.delete(room)

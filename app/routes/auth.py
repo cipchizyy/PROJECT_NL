@@ -71,8 +71,8 @@ def signup():
         send_otp_email(to_email=user.email, name=user.name, otp_code=otp.code)
     except Exception as e:
         print(f"[WARN] Gagal mengirim OTP email: {e}")
-        flash("Gagal mengirim kode verifikasi. Coba lagi.", "danger")
-        return redirect(url_for("auth.login_page"))
+        # Jangan return di sini, tetap lanjut
+        flash("Kode verifikasi gagal dikirim via email, tapi kamu tetap bisa coba verifikasi.", "warning")
 
     # Simpan user_id sementara di session untuk dipakai di halaman verifikasi
     session["pending_verification_user_id"] = user.id
