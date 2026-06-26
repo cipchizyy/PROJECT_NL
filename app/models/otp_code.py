@@ -16,8 +16,6 @@ def generate_otp() -> str:
 class OtpCode(db.Model):
     """
     Kode OTP 6 digit untuk verifikasi email saat Sign Up.
-    Satu user bisa punya beberapa baris (kalau minta kirim ulang),
-    tapi hanya kode terbaru yang dianggap valid.
     """
     __tablename__ = "otp_codes"
 
@@ -40,8 +38,24 @@ class OtpCode(db.Model):
     user = db.relationship("User")
 
     @staticmethod
-    def create_for_user(user_id: str, email: str, purpose: str = "email_verification", valid_minutes: int = 10):
-        """Buat record OTP baru, berlaku selama `valid_minutes` menit (default 10)."""
+    def create_for_user(
+        user_id: str,
+        email: str,
+        purpose: str = "email_verification",
+        valid_minutes: int = 10
+    ):
+        """
+        Buat record OTP baru.
+        OTP lama untuk user dan purpose yang sama akan ditandai sudah digunakan.
+        """
+
+        # Nonaktifkan OTP lama yang belum dipakai
+        OtpCode.query.filter_by(
+            user_id=user_id,
+            purpose=purpose,
+            is_used=False
+        ).update({"is_used": True})
+
         otp = OtpCode(
             user_id=user_id,
             email=email,
@@ -49,8 +63,10 @@ class OtpCode(db.Model):
             purpose=purpose,
             expires_at=datetime.utcnow() + timedelta(minutes=valid_minutes),
         )
+
         db.session.add(otp)
         db.session.commit()
+
         return otp
 
     @property
@@ -58,7 +74,11 @@ class OtpCode(db.Model):
         return datetime.utcnow() > self.expires_at
 
     def is_valid(self, input_code: str) -> bool:
-        return (not self.is_used) and (not self.is_expired) and (self.code == input_code)
+        return (
+            not self.is_used
+            and not self.is_expired
+            and self.code == input_code
+        )
 
     def __repr__(self):
         return f"<OtpCode {self.email} {self.code} used={self.is_used}>"

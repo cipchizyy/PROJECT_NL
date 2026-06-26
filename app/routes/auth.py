@@ -22,7 +22,7 @@ def login_page():
 @auth_bp.route("/signup", methods=["POST"])
 def signup():
     """
-    Step 1 dari Sign Up: simpan data user (belum aktif/terverifikasi),
+    Step 1 dari Sign Up: simpan data user belum terverifikasi,
     lalu kirim OTP ke email dan redirect ke halaman verifikasi.
     """
     name = request.form.get("name", "").strip()
@@ -40,19 +40,20 @@ def signup():
         return redirect(url_for("auth.login_page"))
 
     existing_user = User.query.filter_by(email=email).first()
+
     if existing_user and existing_user.is_email_verified:
         flash("Email sudah terdaftar. Silakan login.", "warning")
         return redirect(url_for("auth.login_page"))
 
     if existing_user and not existing_user.is_email_verified:
-        # User sebelumnya pernah signup tapi belum verifikasi -> update datanya & kirim OTP baru
+        # User pernah signup tapi belum verifikasi
         existing_user.name = name
         existing_user.phone_number = phone_number
         existing_user.set_password(passcode)
         db.session.commit()
         user = existing_user
     else:
-        # --- Simpan user baru sebagai customer, belum terverifikasi ---
+        # Simpan user baru sebagai customer, belum terverifikasi
         user = User(
             name=name,
             email=email,
@@ -64,22 +65,30 @@ def signup():
         db.session.add(user)
         db.session.commit()
 
-    # --- Generate & kirim OTP via Resend ---
-    otp = OtpCode.create_for_user(user_id=user.id, email=user.email, purpose="email_verification")
+    # --- Generate & kirim OTP via Gmail SMTP ---
+    otp = OtpCode.create_for_user(
+        user_id=user.id,
+        email=user.email,
+        purpose="email_verification"
+    )
 
     try:
-        send_otp_email(to_email=user.email, name=user.name, otp_code=otp.code)
+        send_otp_email(
+            to_email=user.email,
+            name=user.name,
+            otp_code=otp.code
+        )
+        flash(f"Kode verifikasi telah dikirim ke {user.email}.", "info")
+
     except Exception as e:
         print(f"[WARN] Gagal mengirim OTP email: {e}")
-        # Jangan return di sini, tetap lanjut
-        flash("Kode verifikasi gagal dikirim via email, tapi kamu tetap bisa coba verifikasi.", "warning")
+        print(f"[DEV OTP] Kode OTP untuk {user.email}: {otp.code}")
+        flash("Kode verifikasi gagal dikirim via email. Cek konfigurasi email.", "warning")
 
-    # Simpan user_id sementara di session untuk dipakai di halaman verifikasi
+    # Simpan user_id sementara di session untuk halaman verifikasi
     session["pending_verification_user_id"] = user.id
 
-    flash(f"Kode verifikasi telah dikirim ke {user.email}.", "info")
     return redirect(url_for("auth.verify_otp_page"))
-
 
 @auth_bp.route("/verify-otp", methods=["GET"])
 def verify_otp_page():
