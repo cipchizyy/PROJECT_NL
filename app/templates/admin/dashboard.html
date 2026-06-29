@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin Dashboard – Next Level</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='../static/css/admin/dashboard.css') }}">
@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+<!-- SIDEBAR -->
 <aside class="sidebar">
   <div class="sidebar-top">
     <div class="sidebar-brand">
@@ -17,7 +17,6 @@
       <span class="brand-sub">Admin Hub</span>
     </div>
   </div>
-
   <nav class="sidebar-nav">
     <a href="{{ url_for('admin.dashboard') }}" class="nav-item active">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
@@ -27,7 +26,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
       Reservations
     </a>
-    <a href="#" class="nav-item">
+    <a href="{{ url_for('admin.manage_room') }}" class="nav-item">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       Manage Room
     </a>
@@ -36,11 +35,8 @@
       Generate Reports
     </a>
   </nav>
-
   <div class="sidebar-user">
-    <div class="user-avatar">
-      {{ current_user.name[0].upper() }}
-    </div>
+    <div class="user-avatar">{{ current_user.name[0].upper() }}</div>
     <div class="user-info">
       <span class="user-name">{{ current_user.name }}</span>
       <span class="user-role">ADMIN</span>
@@ -48,10 +44,10 @@
   </div>
 </aside>
 
-<!-- ═══════════════════════ MAIN ═══════════════════════ -->
+<!-- MAIN -->
 <main class="main">
 
-  <!-- Top bar -->
+  <!-- Topbar -->
   <header class="topbar">
     <h1 class="brand-title">NEXT LEVEL</h1>
     <div class="topbar-right">
@@ -61,7 +57,7 @@
       </div>
       <div class="search-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" placeholder="Search systems..." class="search-input"/>
+        <input type="text" placeholder="Search systems..." class="search-input" id="searchInput"/>
       </div>
       <button class="notif-btn" aria-label="Notifications">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
@@ -102,7 +98,7 @@
       </div>
       <div class="stat-body">
         <span class="stat-label">DAILY REVENUE</span>
-        <span class="stat-value revenue">{{ "{:,.0f}".format(daily_revenue | float) }}</span>
+        <span class="stat-value revenue">{{ "{:,.0f}".format(daily_revenue) }}</span>
       </div>
       <span class="stat-tag green">Daily Target</span>
     </div>
@@ -123,19 +119,22 @@
 
     <div class="rooms-grid" id="roomsGrid">
       {% for room in rooms %}
-      <div class="room-card {{ room.status }}" data-status="{{ room.status }}">
+      {% set ls = room.current_status() %}
+      <div class="room-card {{ ls.state }}" data-status="{{ ls.state }}" data-name="{{ room.room_code }} {{ room.name }}">
         <div class="room-card-top">
-          <span class="room-type">{{ room.room_type | upper }}</span>
-          <span class="room-dot {{ room.status }}"></span>
+          <span class="room-type">{{ room.environment_label | upper }}</span>
+          <span class="room-dot {{ ls.state }}"></span>
         </div>
-        <div class="room-number">{{ room.room_number }}</div>
-        <div class="room-desc">{{ room.description or '—' }}</div>
+        <div class="room-number">{{ room.room_code }}</div>
+        <div class="room-desc">{{ room.description or room.room_type_label }}</div>
         <div class="room-card-bottom">
-          <span class="room-status-label {{ room.status }}">{{ room.status | upper }}</span>
+          <span class="room-status-label {{ ls.state }}">
+            {{ ls.state | upper }}{% if ls.minutes_left %} ({{ ls.minutes_left }}m){% endif %}
+          </span>
           <button class="room-action-btn" title="Detail">
-            {% if room.status == 'available' %}
+            {% if ls.state == 'available' %}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            {% elif room.status == 'busy' %}
+            {% elif ls.state == 'busy' %}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
             {% else %}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.01"/></svg>

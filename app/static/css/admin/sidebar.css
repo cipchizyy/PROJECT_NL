@@ -1,0 +1,414 @@
+/* ===== Layout dasar: sidebar kiri + konten kanan ===== */
+.admin-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ===== Hamburger button (khusus mobile) ===== */
+.sidebar-hamburger-btn {
+    display: none;
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 60;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: #14141b;
+    border: 1px solid #232330;
+    color: #d9a8ff;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+/* ===== Overlay gelap di belakang sidebar saat terbuka (mobile) ===== */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 40;
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+/* ===== Sidebar ===== */
+.admin-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: #0a0a0e;
+    border-right: 1px solid #1c1c26;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 16px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+}
+
+.sidebar-top {
+    margin-bottom: 28px;
+    padding: 0 8px;
+}
+
+.sidebar-title {
+    color: #f0eaf5;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.sidebar-subtitle {
+    color: #6a6a7a;
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #8a8a9a;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 11px 12px;
+    border-radius: 8px;
+    border-left: 3px solid transparent;
+    transition: background 0.2s, color 0.2s;
+}
+
+.sidebar-link svg {
+    flex-shrink: 0;
+    opacity: 0.8;
+}
+
+.sidebar-link:hover {
+    color: #d9a8ff;
+    background: rgba(199, 125, 255, 0.06);
+}
+
+.sidebar-link.active {
+    color: #c77dff;
+    background: rgba(199, 125, 255, 0.1);
+    border-left-color: #c77dff;
+}
+
+.sidebar-bottom {
+    border-top: 1px solid #1c1c26;
+    padding-top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sidebar-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sidebar-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c77dff, #a64dff);
+    color: #1a0e22;
+    font-size: 13px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sidebar-profile-name {
+    color: #e6e6f0;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.sidebar-profile-role {
+    color: #6a6a7a;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+}
+
+.sidebar-logout-form {
+    display: inline;
+}
+
+.sidebar-logout-btn {
+    background: transparent;
+    border: 1px solid #2c2c38;
+    color: #8a8a9a;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.sidebar-logout-btn:hover {
+    border-color: #f87171;
+    color: #f87171;
+}
+
+/* ===== Main content area ===== */
+.admin-main {
+    flex: 1;
+    padding: 24px 32px 48px;
+    overflow-x: hidden;
+}
+
+/* ===== Top status bar ===== */
+.status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #4dd9d4;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+}
+
+.status-bar .pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #4dd9d4;
+    box-shadow: 0 0 0 0 rgba(77, 217, 212, 0.6);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(77, 217, 212, 0.5); }
+    70% { box-shadow: 0 0 0 6px rgba(77, 217, 212, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(77, 217, 212, 0); }
+}
+
+.status-bar-divider {
+    flex: 1;
+    height: 1px;
+    background: #1c1c26;
+}
+
+/* ===== Toolbar: date filter + tombol (+) ===== */
+.reservation-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.date-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #14141b;
+    border: 1px solid #232330;
+    border-radius: 10px;
+    padding: 9px 16px;
+    color: #d9d9e6;
+    font-size: 13px;
+}
+
+.date-filter svg {
+    opacity: 0.6;
+}
+
+.add-reservation-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f0589c, #c77dff);
+    border: none;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 4px 16px rgba(240, 88, 156, 0.35);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.add-reservation-btn:hover {
+    transform: scale(1.06);
+    box-shadow: 0 6px 20px rgba(240, 88, 156, 0.5);
+}
+
+/* ===== Card panel (Recent Reservations) ===== */
+.panel-card {
+    background: #14141b;
+    border: 1px solid #232330;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px;
+    border-bottom: 1px solid #1c1c26;
+    gap: 16px;
+}
+
+.panel-header h2 {
+    color: #f0eaf5;
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.panel-search {
+    flex: 1;
+    max-width: 280px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #1f1f29;
+    border: 1px solid #2c2c38;
+    border-radius: 8px;
+    padding: 7px 12px;
+}
+
+.panel-search input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-size: 12px;
+    width: 100%;
+}
+
+.panel-search svg {
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+
+.panel-view-all {
+    color: #8a8a9a;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.panel-view-all:hover {
+    color: #c77dff;
+}
+
+/* ===== Reservation table ===== */
+.reservation-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.reservation-table th {
+    text-align: left;
+    color: #6a6a7a;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 12px 20px;
+}
+
+.reservation-table td {
+    padding: 14px 20px;
+    color: #d9d9e6;
+    font-size: 13px;
+    border-top: 1px solid #1c1c26;
+    vertical-align: middle;
+}
+
+.cell-booking-id {
+    color: #d9a8ff;
+    font-weight: 700;
+}
+
+.cell-slot {
+    color: #b8b8c8;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+/* ===== Status badges ===== */
+.badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 5px 12px;
+    border-radius: 12px;
+}
+
+.badge-confirmed { background: rgba(77, 217, 212, 0.15); color: #4dd9d4; }
+.badge-arrived { background: rgba(240, 88, 156, 0.15); color: #f0589c; }
+.badge-pending { background: rgba(138, 138, 154, 0.15); color: #b8b8c8; }
+.badge-cancelled { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+.badge-completed { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+
+.row-action-btn {
+    background: transparent;
+    border: 1px solid #2c2c38;
+    color: #8a8a9a;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.row-action-btn:hover {
+    border-color: #4dd9d4;
+    color: #4dd9d4;
+}
+
+.empty-row {
+    text-align: center;
+    color: #5a5a6a;
+    padding: 40px !important;
+}
+
+/* ===== Mobile: sidebar jadi hamburger menu yang bisa dibuka/tutup ===== */
+@media (max-width: 880px) {
+    .sidebar-hamburger-btn {
+        display: flex;
+    }
+
+    .admin-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 50;
+        height: 100vh;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .admin-sidebar.open {
+        transform: translateX(0);
+    }
+
+    .admin-main {
+        padding-top: 72px; /* beri ruang supaya konten tidak tertutup hamburger */
+    }
+}

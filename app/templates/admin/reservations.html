@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Next Level Rent - Reservation</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='../static/css/admin/sidebar.css') }}">
+</head>
+<body style="margin:0; background:#0d0d12; font-family:'Segoe UI', Arial, sans-serif;">
+    <div class="admin-layout">
+        {% set active_menu = 'reservation' %}
+        {% include "admin/sidebar.html" %}
+
+        <main class="admin-main">
+            <div class="status-bar">
+                <span class="pulse-dot"></span>
+                ALL NODES OPERATIONAL
+                <span class="status-bar-divider"></span>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages" style="margin-bottom:16px;">
+                        {% for category, message in messages %}
+                            <div class="flash flash-{{ category }}" style="padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:8px;
+                                {% if category == 'success' %}background:#1a3a22; color:#8aff9a;
+                                {% elif category == 'danger' %}background:#3a1a1a; color:#ff8a8a;
+                                {% else %}background:#1a2a3a; color:#8ad9ff;{% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="reservation-toolbar">
+                <div class="date-filter">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" stroke-width="1.5"/><line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="1.5"/></svg>
+                    <span id="date-range-label">Oct 24, 2023 - Oct 31, 2023</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                </div>
+
+                <a href="{{ url_for('admin.new_offline_reservation_page') }}" class="add-reservation-btn" title="Tambah Reservasi Offline">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+                </a>
+            </div>
+
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h2>Recent Reservations</h2>
+                    <form method="GET" class="panel-search">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M21 21l-4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                        <input type="text" name="search" placeholder="Search Transaksi..." value="{{ search }}">
+                    </form>
+                    <a href="#" class="panel-view-all">View All</a>
+                </div>
+
+                <table class="reservation-table">
+                    <thead>
+                        <tr>
+                            <th>Booking ID</th>
+                            <th>Customer</th>
+                            <th>Station</th>
+                            <th>Slot</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in reservations %}
+                        <tr>
+                            <td class="cell-booking-id">#{{ r.booking_number }}</td>
+                            <td>{{ r.customer_display_name }}</td>
+                            <td>{{ r.room.room_code }}</td>
+                            <td class="cell-slot">
+                                {{ r.start_time.strftime("%H:%M") }}<br>&ndash;<br>{{ r.end_time.strftime("%H:%M") }}
+                            </td>
+                            <td>
+                                {% if r.display_status == 'arrived' %}
+                                    <span class="badge badge-arrived">Arrived</span>
+                                {% elif r.display_status == 'confirmed' %}
+                                    <span class="badge badge-confirmed">Confirmed</span>
+                                {% elif r.display_status == 'pending' %}
+                                    <span class="badge badge-pending">Pending</span>
+                                {% elif r.display_status == 'cancelled' %}
+                                    <span class="badge badge-cancelled">Cancelled</span>
+                                {% else %}
+                                    <span class="badge badge-completed">Completed</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if r.status == 'confirmed' and not r.is_arrived %}
+                                <form action="{{ url_for('admin.mark_arrived', reservation_id=r.id) }}" method="POST" style="display:inline;">
+                                    <button type="submit" class="row-action-btn">Mark Arrived</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="empty-row">Belum ada reservasi.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

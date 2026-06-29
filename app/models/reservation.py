@@ -1,10 +1,16 @@
 import uuid
+import random
 from datetime import datetime
 from app.extensions import db
 
 
 def generate_uuid():
     return str(uuid.uuid4())
+
+
+def generate_booking_number():
+    """Generate booking ID pendek untuk ditampilkan ke customer, mis: 'NL-9942'."""
+    return f"NL-{random.randint(1000, 9999)}"
 
 
 class Reservation(db.Model):
@@ -16,6 +22,9 @@ class Reservation(db.Model):
     __tablename__ = "reservations"
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    booking_number = db.Column(db.String(20), unique=True, nullable=False, default=generate_booking_number)
+    # Booking ID pendek (mis: "NL-9942") yang ditampilkan di tabel Reservation List admin,
+    # supaya lebih mudah disebut/dicari dibanding UUID panjang.
 
     room_id = db.Column(db.String(36), db.ForeignKey("rooms.id"), nullable=False)
     customer_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
@@ -38,6 +47,11 @@ class Reservation(db.Model):
         nullable=False,
     )
 
+    # Terpisah dari `status`: menandai customer sudah check-in fisik di lokasi.
+    # Badge "Arrived" di Reservation List admin = status confirmed + is_arrived True.
+    is_arrived = db.Column(db.Boolean, default=False, nullable=False)
+    arrived_at = db.Column(db.DateTime, nullable=True)
+
     source = db.Column(
         db.Enum("online", "offline", name="reservation_source"),
         default="online",
@@ -56,11 +70,27 @@ class Reservation(db.Model):
     created_by_admin = db.relationship("User", foreign_keys=[created_by_admin_id])
     payment = db.relationship("Payment", back_populates="reservation", uselist=False)
 
+    @property
+    def customer_display_name(self) -> str:
+        """Nama yang ditampilkan di tabel: customer terdaftar atau guest walk-in."""
+        if self.customer:
+            return self.customer.name
+        return self.guest_name or "-"
+
+    @property
+    def display_status(self) -> str:
+        """Status untuk badge di Reservation List: arrived diutamakan tampil di atas confirmed biasa."""
+        if self.status == "confirmed" and self.is_arrived:
+            return "arrived"
+        return self.status
+
     def to_dict(self):
         return {
             "id": self.id,
+            "booking_number": self.booking_number,
             "room_id": self.room_id,
             "customer_id": self.customer_id,
+            "customer_display_name": self.customer_display_name,
             "guest_name": self.guest_name,
             "guest_phone": self.guest_phone,
             "start_time": self.start_time.isoformat() if self.start_time else None,
@@ -68,8 +98,10 @@ class Reservation(db.Model):
             "duration_hours": float(self.duration_hours),
             "total_price": float(self.total_price),
             "status": self.status,
+            "is_arrived": self.is_arrived,
+            "display_status": self.display_status,
             "source": self.source,
         }
 
     def __repr__(self):
-        return f"<Reservation {self.id} room={self.room_id}>"
+        return f"<Reservation {self.booking_number} room={self.room_id}>"

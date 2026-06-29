@@ -3,152 +3,322 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Next Level Rent - Manage Room</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <title>Next Level - Manage Room</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='../static/css/admin/sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='../static/css/admin/rooms.css') }}">
 </head>
-<body>
-    <nav class="navbar">
-        <span class="navbar-brand">NEXT LEVEL <span class="navbar-admin-tag">ADMIN</span></span>
-        <div class="navbar-links">
-            <a href="{{ url_for('admin.dashboard') }}" class="nav-link">Dashboard</a>
-            <a href="{{ url_for('admin.manage_room') }}" class="nav-link active">Manage Room</a>
-            <a href="{{ url_for('admin.create_sales_report') }}" class="nav-link">Sales Report</a>
-        </div>
-        <div class="navbar-menu">
-            <span class="navbar-user">Hi, {{ current_user.name }}</span>
-            <form action="{{ url_for('auth.logout') }}" method="POST" class="navbar-logout-form">
-                <button type="submit" class="navbar-logout-btn">Logout</button>
-            </form>
-        </div>
-    </nav>
+<body style="margin:0; background:#0d0d12; font-family:'Segoe UI', Arial, sans-serif;">
+<div class="admin-layout">
+    {% set active_menu = 'manage_room' %}
+    {% include "admin/sidebar.html" %}
 
-    <div class="admin-body">
-        <h1 class="admin-page-title">Manage Room</h1>
+    <main class="admin-main">
 
+        <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-messages">
-                    {% for category, message in messages %}
-                        <div class="flash flash-{{ category }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
+        {% if messages %}
+        <div class="flash-wrap">
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">
+                <span>{{ message }}</span>
+                <button class="flash-close" onclick="this.parentElement.remove()">×</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
         {% endwith %}
 
-        <div class="admin-toolbar">
-            <button type="button" class="btn-primary" onclick="openRoomModal()">+ Tambah Room</button>
+        <!-- Filter Tabs -->
+        <div class="rm-tabs">
+            <button class="rm-tab active" data-filter="all">All Rooms</button>
+            <button class="rm-tab" data-filter="regular">Regular</button>
+            <button class="rm-tab" data-filter="regular_pro">Regular Pro</button>
+            <button class="rm-tab" data-filter="vip">VIP</button>
         </div>
 
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Code</th>
-                        <th>Nama</th>
-                        <th>Console</th>
-                        <th>Environment</th>
-                        <th>Harga/Jam</th>
-                        <th>Status</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for room in rooms %}
-                    <tr>
-                        <td>{{ room.room_code }}</td>
-                        <td>{{ room.name }}</td>
-                        <td>{{ room.console_type }}</td>
-                        <td>{{ room.environment_label }}</td>
-                        <td>Rp {{ "{:,.0f}".format(room.price_per_hour) }}</td>
-                        <td>
-                            <span class="admin-room-status status-{{ room.status }}">{{ room.status }}</span>
-                        </td>
-                        <td>
-                            <button type="button" class="table-action-btn edit"
-                                onclick='openRoomModal({{ room.to_dict()|tojson }})'>Edit</button>
-                            <form action="{{ url_for('admin.delete_room', room_id=room.id) }}" method="POST"
-                                  style="display:inline;" onsubmit="return confirm('Hapus room {{ room.room_code }}?');">
-                                <button type="submit" class="table-action-btn delete">Hapus</button>
-                            </form>
-                        </td>
-                    </tr>
+        <h1 class="rm-title">Room Inventory</h1>
+
+        <!-- Room Grid -->
+        <div class="rm-grid" id="roomGrid">
+
+            <!-- Add New Room Card -->
+            <div class="rm-card rm-card-add" id="btnAddRoom">
+                <div class="rm-add-inner">
+                    <div class="rm-add-icon">+</div>
+                    <p class="rm-add-label">New<br>Room</p>
+                    <p class="rm-add-sub">Expand your<br>Inventory</p>
+                </div>
+            </div>
+
+            <!-- Room Cards -->
+            {% for room in rooms %}
+            <div class="rm-card rm-card-room" data-env="{{ room.environment }}">
+                <div class="rm-card-img">
+                    {% if room.image_url %}
+                    <img src="{{ room.image_url }}" alt="{{ room.name }}">
                     {% else %}
-                    <tr>
-                        <td colspan="7" style="text-align:center; color:#5a5a6a; padding:32px;">Belum ada room.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="room-modal" class="modal-overlay">
-        <div class="modal-card" style="max-width:480px;">
-            <h3 id="room-modal-title">Tambah Room</h3>
-            <form id="room-form" method="POST" enctype="multipart/form-data">
-                <div class="admin-form-grid">
-                    <div>
-                        <label>Room Code</label>
-                        <input type="text" name="room_code" id="f-room_code" placeholder="R-07" required>
+                    <div class="rm-img-placeholder env-{{ room.environment }}"></div>
+                    {% endif %}
+                </div>
+                <div class="rm-card-body">
+                    <div class="rm-card-top">
+                        <span class="rm-code">
+                            <span class="rm-code-icon">⊞</span> {{ room.room_code }}
+                        </span>
+                        <div class="rm-price-wrap">
+                            <span class="rm-price">{{ "{:,.0f}".format(room.price_per_hour|float / 1000)|replace(",",".")|replace(".","k",1) }}k/hr</span>
+                            <span class="rm-env-label">{{ room.environment_label }}</span>
+                        </div>
                     </div>
-                    <div>
-                        <label>Nama</label>
-                        <input type="text" name="name" id="f-name" placeholder="Room 07" required>
-                    </div>
-                    <div>
-                        <label>Console</label>
-                        <input type="text" name="console_type" id="f-console_type" placeholder="PS5" required>
-                    </div>
-                    <div>
-                        <label>Harga/Jam</label>
-                        <input type="number" name="price_per_hour" id="f-price_per_hour" placeholder="10000" required>
-                    </div>
-                    <div>
-                        <label>Environment</label>
-                        <select name="environment" id="f-environment">
-                            <option value="regular">Regular</option>
-                            <option value="regular_pro">Regular Pro</option>
-                            <option value="vip">VIP</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>Status</label>
-                        <select name="status" id="f-status">
-                            <option value="available">Available</option>
-                            <option value="maintenance">Maintenance</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>Jumlah Game</label>
-                        <input type="number" name="game_count" id="f-game_count" placeholder="13">
-                    </div>
-                    <div>
-                        <label>Tipe Ruangan</label>
-                        <select name="room_type" id="f-room_type">
-                            <option value="non_smoking">Non-Smoking</option>
-                            <option value="smoking">Smoking</option>
-                        </select>
-                    </div>
-                    <div class="full-width">
-                        <label>Seating Type</label>
-                        <input type="text" name="seating_type" id="f-seating_type" placeholder="Cozy Beanbag Seating">
-                    </div>
-                    <div class="full-width">
-                        <label>Foto Room</label>
-                        <input type="file" name="image" id="f-image" accept="image/*">
+                    <ul class="rm-specs">
+                        <li><span class="rm-spec-icon">🖥</span> {{ room.game_count }} Games</li>
+                        <li><span class="rm-spec-icon">🚭</span> {{ room.room_type_label }}</li>
+                        {% if room.seating_type %}
+                        <li><span class="rm-spec-icon">🎧</span> {{ room.seating_type }}</li>
+                        {% endif %}
+                    </ul>
+                    <div class="rm-card-actions">
+                        <button class="rm-btn rm-btn-detail" onclick="openDetailModal('{{ room.id }}', '{{ room.room_code }}', '{{ room.name }}', '{{ room.environment }}', '{{ room.console_type }}', {{ room.price_per_hour }}, {{ room.game_count }}, '{{ room.room_type }}', '{{ room.seating_type or '' }}', '{{ room.status }}', '{{ room.image_url or '' }}', '{{ room.description or '' }}')">
+                            <span>👁</span> Details
+                        </button>
+                        <button class="rm-btn rm-btn-edit" onclick="openEditModal('{{ room.id }}', '{{ room.room_code }}', '{{ room.name }}', '{{ room.environment }}', '{{ room.console_type }}', {{ room.price_per_hour }}, {{ room.game_count }}, '{{ room.room_type }}', '{{ room.seating_type or '' }}', '{{ room.status }}', '{{ room.description or '' }}')">
+                            <span>✏</span> Edit
+                        </button>
+                        <button class="rm-btn rm-btn-delete" onclick="confirmDelete('{{ room.id }}', '{{ room.room_code }}')">
+                            <span>🗑</span> Delete
+                        </button>
                     </div>
                 </div>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+</div>
 
-                <div class="modal-actions">
-                    <button type="button" class="modal-cancel-btn" onclick="closeRoomModal()">Batal</button>
-                    <button type="submit" class="modal-confirm-btn">Simpan</button>
+<!-- ══════════════ MODAL: ADD ROOM ══════════════ -->
+<div class="modal-overlay" id="modalAdd">
+    <div class="modal-panel">
+        <div class="modal-header">
+            <h2 class="modal-title">Tambah Room Baru</h2>
+            <button class="modal-close" onclick="closeModal('modalAdd')">×</button>
+        </div>
+        <form action="{{ url_for('admin.create_room') }}" method="POST" enctype="multipart/form-data" class="modal-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Kode Room</label>
+                    <input type="text" name="room_code" placeholder="R-01" required>
                 </div>
-            </form>
+                <div class="form-group">
+                    <label>Nama Room</label>
+                    <input type="text" name="name" placeholder="Room Alpha" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Tipe Environment</label>
+                    <select name="environment" required>
+                        <option value="regular">Regular</option>
+                        <option value="regular_pro">Regular Pro</option>
+                        <option value="vip">VIP</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Konsol</label>
+                    <input type="text" name="console_type" placeholder="PS5" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Harga/Jam (Rp)</label>
+                    <input type="number" name="price_per_hour" placeholder="10000" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Jumlah Game</label>
+                    <input type="number" name="game_count" placeholder="13" min="0" value="0">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Tipe Ruangan</label>
+                    <select name="room_type">
+                        <option value="non_smoking">Non-Smoking Room</option>
+                        <option value="smoking">Smoking Room</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tipe Seating</label>
+                    <input type="text" name="seating_type" placeholder="Cozy Beanbag Seating">
+                </div>
+            </div>
+            <div class="form-group form-group-full">
+                <label>Status</label>
+                <select name="status">
+                    <option value="available">Available</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            <div class="form-group form-group-full">
+                <label>Deskripsi (opsional)</label>
+                <textarea name="description" placeholder="Deskripsi singkat room..." rows="2"></textarea>
+            </div>
+            <div class="form-group form-group-full">
+                <label>Foto Room</label>
+                <div class="file-upload-area" id="addFileArea">
+                    <input type="file" name="image" accept="image/*" id="addFileInput" style="display:none">
+                    <div class="file-upload-placeholder" onclick="document.getElementById('addFileInput').click()">
+                        <span class="file-upload-icon">📷</span>
+                        <span>Klik untuk upload foto</span>
+                        <span class="file-upload-hint">JPG, PNG — maks 5MB</span>
+                    </div>
+                    <p class="file-name" id="addFileName"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeModal('modalAdd')">Batal</button>
+                <button type="submit" class="btn-save">Tambah Room</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: EDIT ROOM ══════════════ -->
+<div class="modal-overlay" id="modalEdit">
+    <div class="modal-panel">
+        <div class="modal-header">
+            <h2 class="modal-title">Edit Room</h2>
+            <button class="modal-close" onclick="closeModal('modalEdit')">×</button>
+        </div>
+        <form id="editForm" method="POST" enctype="multipart/form-data" class="modal-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Kode Room</label>
+                    <input type="text" name="room_code" id="edit_room_code" required>
+                </div>
+                <div class="form-group">
+                    <label>Nama Room</label>
+                    <input type="text" name="name" id="edit_name" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Tipe Environment</label>
+                    <select name="environment" id="edit_environment">
+                        <option value="regular">Regular</option>
+                        <option value="regular_pro">Regular Pro</option>
+                        <option value="vip">VIP</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Konsol</label>
+                    <input type="text" name="console_type" id="edit_console_type" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Harga/Jam (Rp)</label>
+                    <input type="number" name="price_per_hour" id="edit_price_per_hour" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Jumlah Game</label>
+                    <input type="number" name="game_count" id="edit_game_count" min="0">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Tipe Ruangan</label>
+                    <select name="room_type" id="edit_room_type">
+                        <option value="non_smoking">Non-Smoking Room</option>
+                        <option value="smoking">Smoking Room</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tipe Seating</label>
+                    <input type="text" name="seating_type" id="edit_seating_type">
+                </div>
+            </div>
+            <div class="form-group form-group-full">
+                <label>Status</label>
+                <select name="status" id="edit_status">
+                    <option value="available">Available</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            <div class="form-group form-group-full">
+                <label>Deskripsi (opsional)</label>
+                <textarea name="description" id="edit_description" rows="2"></textarea>
+            </div>
+            <div class="form-group form-group-full">
+                <label>Ganti Foto Room (opsional)</label>
+                <div class="file-upload-area">
+                    <input type="file" name="image" accept="image/*" id="editFileInput" style="display:none">
+                    <div class="file-upload-placeholder" onclick="document.getElementById('editFileInput').click()">
+                        <span class="file-upload-icon">📷</span>
+                        <span>Klik untuk ganti foto</span>
+                        <span class="file-upload-hint">Biarkan kosong jika tidak ingin ganti</span>
+                    </div>
+                    <p class="file-name" id="editFileName"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeModal('modalEdit')">Batal</button>
+                <button type="submit" class="btn-save">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: DETAIL ROOM ══════════════ -->
+<div class="modal-overlay" id="modalDetail">
+    <div class="modal-panel modal-panel-detail">
+        <div class="modal-header">
+            <h2 class="modal-title" id="detail_title">Detail Room</h2>
+            <button class="modal-close" onclick="closeModal('modalDetail')">×</button>
+        </div>
+        <div class="detail-body">
+            <div class="detail-img-wrap">
+                <img src="" alt="" id="detail_img" class="detail-img" style="display:none">
+                <div class="detail-img-placeholder" id="detail_img_placeholder">🎮</div>
+            </div>
+            <div class="detail-info">
+                <div class="detail-row"><span class="detail-label">Kode</span><span id="d_code"></span></div>
+                <div class="detail-row"><span class="detail-label">Nama</span><span id="d_name"></span></div>
+                <div class="detail-row"><span class="detail-label">Environment</span><span id="d_env"></span></div>
+                <div class="detail-row"><span class="detail-label">Konsol</span><span id="d_console"></span></div>
+                <div class="detail-row"><span class="detail-label">Harga/Jam</span><span id="d_price" class="detail-price"></span></div>
+                <div class="detail-row"><span class="detail-label">Jumlah Game</span><span id="d_games"></span></div>
+                <div class="detail-row"><span class="detail-label">Tipe Ruangan</span><span id="d_roomtype"></span></div>
+                <div class="detail-row"><span class="detail-label">Seating</span><span id="d_seating"></span></div>
+                <div class="detail-row"><span class="detail-label">Status</span><span id="d_status"></span></div>
+                <div class="detail-row detail-row-desc" id="detail_desc_row">
+                    <span class="detail-label">Deskripsi</span><span id="d_desc"></span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-cancel" onclick="closeModal('modalDetail')">Tutup</button>
         </div>
     </div>
+</div>
 
-    <script src="{{ url_for('static', filename='js/admin_rooms.js') }}"></script>
+<!-- ══════════════ MODAL: DELETE CONFIRM ══════════════ -->
+<div class="modal-overlay" id="modalDelete">
+    <div class="modal-panel modal-panel-sm">
+        <div class="modal-header">
+            <h2 class="modal-title modal-title-danger">Hapus Room?</h2>
+            <button class="modal-close" onclick="closeModal('modalDelete')">×</button>
+        </div>
+        <p class="delete-confirm-text">Room <strong id="deleteRoomCode"></strong> akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.</p>
+        <form id="deleteForm" method="POST">
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeModal('modalDelete')">Batal</button>
+                <button type="submit" class="btn-delete">Ya, Hapus</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='../static/js/admin/rooms.js') }}"></script>
 </body>
 </html>

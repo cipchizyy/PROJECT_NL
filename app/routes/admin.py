@@ -26,25 +26,26 @@ def admin_required(f):
 @admin_bp.route("/dashboard")
 @admin_required
 def dashboard():
-    # --- Stats ringkas untuk admin dashboard ---
-    total_rooms = Room.query.count()
+    # Stat cards
+    total_rooms     = Room.query.count()
     available_rooms = Room.query.filter_by(status="available").count()
     active_bookings = Reservation.query.filter_by(status="confirmed").count()
 
-    # Revenue hari ini, dihitung dari Reservation yang sudah confirmed/completed
+    # Daily revenue hari ini
     today = date.today()
     daily_revenue = db.session.query(func.sum(Reservation.total_price)).filter(
         func.date(Reservation.created_at) == today,
-        Reservation.status.in_(["confirmed", "completed"]),
+        Reservation.status.in_(["confirmed", "completed"])
     ).scalar()
     daily_revenue = float(daily_revenue or 0)
 
-    # Rooms untuk grid ringkas di dashboard
-    rooms = Room.query.limit(6).all()
+    # Room grid — semua room kecuali inactive, limit 6 untuk dashboard
+    rooms = Room.query.filter(
+        Room.status != 'inactive'
+    ).order_by(Room.room_code).limit(6).all()
 
     return render_template(
         "admin/dashboard.html",
-        user=current_user,
         total_rooms=total_rooms,
         available_rooms=available_rooms,
         active_bookings=active_bookings,
@@ -129,18 +130,68 @@ def delete_room(room_id):
     return redirect(url_for("admin.manage_room"))
 
 
+@admin_bp.route("/reservations", methods=["GET"])
+@admin_required
+def reservation_list():
+    """Halaman 'Reservation' di sidebar admin -- tabel lengkap semua reservasi."""
+    search = request.args.get("search", "").strip()
+ 
+    query = Reservation.query.join(Room)
+ 
+    if search:
+        query = query.filter(
+            db.or_(
+                Reservation.booking_number.ilike(f"%{search}%"),
+                Reservation.guest_name.ilike(f"%{search}%"),
+                Room.room_code.ilike(f"%{search}%"),
+            )
+        )
+ 
+    reservations = query.order_by(Reservation.start_time.desc()).limit(50).all()
+ 
+    return render_template(
+        "admin/reservations.html",
+        reservations=reservations,
+        search=search,
+    )
+ 
+ 
+@admin_bp.route("/reservations/<reservation_id>/arrive", methods=["POST"])
+@admin_required
+def mark_arrived(reservation_id):
+    """Tandai customer sudah check-in fisik di lokasi (badge 'Arrived')."""
+    reservation = Reservation.query.get_or_404(reservation_id)
+    reservation.is_arrived = True
+    reservation.arrived_at = datetime.utcnow()
+    db.session.commit()
+ 
+    flash(f"Reservasi {reservation.booking_number} ditandai Arrived.", "success")
+    return redirect(url_for("admin.reservation_list"))
+ 
+ 
+@admin_bp.route("/reservations/offline/new", methods=["GET"])
+@admin_required
+def new_offline_reservation_page():
+    """
+    Halaman form Create Offline Reservation, dibuka lewat tombol (+) pink
+    di Reservation List (sesuai mockup).
+    """
+    rooms = Room.query.filter_by(status="available").order_by(Room.room_code).all()
+    return render_template("admin/offline_reservation.html", rooms=rooms)
+ 
+ 
 @admin_bp.route("/reservations/<reservation_id>", methods=["PUT"])
 @admin_required
 def update_reservation(reservation_id):
     """Use case: Update Reservation (<<extend>> Manage Room)."""
     reservation = Reservation.query.get_or_404(reservation_id)
-
+ 
     reservation.status = request.form.get("status", reservation.status)
     db.session.commit()
-
+ 
     return jsonify({"success": True, "reservation": reservation.to_dict()})
-
-
+ 
+ 
 @admin_bp.route("/reservations/<reservation_id>", methods=["DELETE"])
 @admin_required
 def delete_reservation(reservation_id):
@@ -148,10 +199,10 @@ def delete_reservation(reservation_id):
     reservation = Reservation.query.get_or_404(reservation_id)
     db.session.delete(reservation)
     db.session.commit()
-
+ 
     return jsonify({"success": True})
-
-
+ 
+ 
 @admin_bp.route("/reservations/offline", methods=["POST"])
 @admin_required
 def create_offline_reservation():
@@ -159,17 +210,23 @@ def create_offline_reservation():
     room_id = request.form.get("room_id")
     guest_name = request.form.get("guest_name")
     guest_phone = request.form.get("guest_phone")
-    start_time = request.form.get("start_time")
+    start_time_raw = request.form.get("start_time")
     duration_hours = float(request.form.get("duration_hours", 1))
-
+ 
     room = Room.query.get_or_404(room_id)
+ 
+    # Input dari <input type="datetime-local"> formatnya "YYYY-MM-DDTHH:MM"
+    start_time = datetime.strptime(start_time_raw, "%Y-%m-%dT%H:%M")
+    end_time = start_time + timedelta(hours=duration_hours)
+ 
     total_price = float(room.price_per_hour) * duration_hours
-
+ 
     reservation = Reservation(
         room_id=room.id,
         guest_name=guest_name,
         guest_phone=guest_phone,
         start_time=start_time,
+        end_time=end_time,
         duration_hours=duration_hours,
         total_price=total_price,
         source="offline",
@@ -178,10 +235,10 @@ def create_offline_reservation():
     )
     db.session.add(reservation)
     db.session.commit()
-
-    return jsonify({"success": True, "reservation": reservation.to_dict()}), 201
-
-
+ 
+    flash(f"Reservasi offline {reservation.booking_number} untuk {guest_name} berhasil dibuat.", "success")
+    return redirect(url_for("admin.reservation_list"))
+ 
 @admin_bp.route("/sales-report", methods=["GET"])
 @admin_required
 def create_sales_report():

@@ -1,0 +1,197 @@
+/* ============================================================
+   offline_reservation.css — Next Level Admin
+   ============================================================ */
+
+/* ---------- Back link ---------- */
+.admin-main .back-link,
+.admin-main a[href*="reservation"] {
+  color: #6b6b8a;
+  font-size: 13px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+  transition: color 0.2s;
+}
+.admin-main a[href*="reservation"]:hover { color: #a78bfa; }
+
+/* ---------- Page title ---------- */
+.admin-page-title {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: #e8e8f0;
+  margin: 0 0 6px;
+  letter-spacing: 0.3px;
+}
+
+/* ---------- Subtitle ---------- */
+.admin-main > p {
+  color: #6b6b8a;
+  font-size: 13px;
+  margin: 0 0 28px;
+}
+
+/* ---------- Flash messages ---------- */
+.flash-messages {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flash {
+  padding: 11px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+}
+
+.flash-success {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+.flash-danger {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+.flash-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: #f59e0b;
+  color: #fcd34d;
+}
+.flash-info {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: #6366f1;
+  color: #a5b4fc;
+}
+
+/* ---------- Panel card ---------- */
+.panel-card {
+  background: #16161f;
+  border: 1px solid #22222e;
+  border-radius: 14px;
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.35);
+}
+
+/* ---------- Form labels ---------- */
+.panel-card form label,
+.panel-card label {
+  display: block;
+  color: #9090b0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+
+/* ---------- Form fields (override inline styles) ---------- */
+.panel-card select,
+.panel-card input[type="text"],
+.panel-card input[type="number"],
+.panel-card input[type="datetime-local"] {
+  width: 100% !important;
+  background: #1c1c27 !important;
+  border: 1px solid #2a2a3a !important;
+  border-radius: 8px !important;
+  padding: 11px 14px !important;
+  color: #e0e0f0 !important;
+  font-size: 14px !important;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  margin-bottom: 20px !important;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.panel-card select:focus,
+.panel-card input:focus {
+  border-color: #7c3aed !important;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15) !important;
+}
+
+.panel-card select:hover,
+.panel-card input:hover {
+  border-color: #3a3a50 !important;
+}
+
+/* Select arrow */
+.panel-card select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b6b8a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  padding-right: 36px !important;
+  cursor: pointer;
+}
+
+/* Placeholder color */
+.panel-card select option[value=""] { color: #555570; }
+.panel-card input::placeholder { color: #44445a; }
+
+/* Datetime-local icon color fix */
+.panel-card input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.4);
+  cursor: pointer;
+}
+
+/* Number input arrows */
+.panel-card input[type="number"]::-webkit-inner-spin-button,
+.panel-card input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.4;
+}
+
+/* ---------- Divider before button ---------- */
+.panel-card form::before {
+  display: none;
+}
+
+/* ---------- Submit button ---------- */
+.btn-primary {
+  display: inline-block;
+  width: 100%;
+  padding: 13px 0;
+  background: linear-gradient(135deg, #6d28d9, #7c3aed);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  text-align: center;
+  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 16px rgba(109, 40, 217, 0.3);
+  margin-top: 4px;
+}
+
+.btn-primary:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(109, 40, 217, 0.4);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* ---------- Field group spacing fix ---------- */
+.panel-card form > label:not(:first-child) {
+  margin-top: 4px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 600px) {
+  .panel-card {
+    padding: 20px !important;
+    border-radius: 10px;
+  }
+  .admin-page-title { font-size: 20px; }
+}
