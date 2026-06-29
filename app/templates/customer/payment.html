@@ -1,5 +1,5 @@
-{% extends "customer/base.html" %}
-{% block title %}Payment - Next Level{% endblock %}
+{% extends "customer/dashboard.html" %}
+{% block title %}Payment – Next Level{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/payment.css') }}">
 {% endblock %}
@@ -8,7 +8,7 @@
 <div class="payment-wrapper">
   <div class="payment-container">
 
-    <!-- LEFT COLUMN -->
+    <!-- ── LEFT ─────────────────────────────────────────── -->
     <div class="payment-left">
 
       <!-- Reservation Summary -->
@@ -16,23 +16,28 @@
         <h2 class="card-title"><span class="icon">🛒</span> Reservation Summary</h2>
         <div class="reservation-info">
           <div class="room-image">
-            <img src="{{ room.image_url or url_for('static', filename='img/room-placeholder.jpg') }}" alt="{{ room.name }}">
+            <img src="{{ room.image_url or url_for('static', filename='img/room-placeholder.jpg') }}"
+                 alt="{{ room.name }}"
+                 onerror="this.style.display='none'">
           </div>
           <div class="room-details">
-            <span class="room-type">{{ room.type | upper }}</span>
-            <span class="room-code">{{ room.code }}</span>
+            <span class="room-type">{{ room.room_type | upper }}</span>
+            <span class="room-code">{{ room.room_code }}</span>
             <div class="room-meta">
               <div class="meta-item">
                 <span class="meta-label">DATE</span>
-                <span class="meta-value">{{ reservation.date.strftime('%B %d, %Y') }}</span>
+                <span class="meta-value">{{ reservation.start_time.strftime('%B %d, %Y') }}</span>
               </div>
               <div class="meta-item">
                 <span class="meta-label">TIME SLOT</span>
-                <span class="meta-value">{{ reservation.start_time }} - {{ reservation.end_time }}</span>
+                <span class="meta-value">
+                  {{ reservation.start_time.strftime('%H:%M') }} –
+                  {{ (reservation.start_time + timedelta(hours=reservation.duration_hours)).strftime('%H:%M') }}
+                </span>
               </div>
               <div class="meta-item">
                 <span class="meta-label">DURATION</span>
-                <span class="meta-value">{{ reservation.duration }} Hours</span>
+                <span class="meta-value">{{ reservation.duration_hours | int }} Hours</span>
               </div>
             </div>
           </div>
@@ -43,44 +48,46 @@
       <div class="card">
         <h2 class="card-title"><span class="icon">💳</span> Payment Method</h2>
         <div class="payment-methods">
-          <div class="method-option {% if selected_method == 'cash' %}active{% endif %}" data-method="cash" onclick="selectMethod('cash')">
+          <div class="method-option {% if selected_method == 'cash' %}active{% endif %}"
+               data-method="cash" onclick="selectMethod('cash')">
             <span class="method-name">Cash</span>
             <span class="method-desc">Bayar di kasir</span>
-            <span class="method-icon cash-icon">🖨</span>
+            <span class="method-icon">🖨</span>
           </div>
-          <div class="method-option {% if selected_method == 'cashless' %}active{% endif %}" data-method="cashless" onclick="selectMethod('cashless')">
+          <div class="method-option {% if selected_method != 'cash' %}active{% endif %}"
+               data-method="cashless" onclick="selectMethod('cashless')">
             <span class="method-name">Cashless</span>
             <span class="method-desc">QRIS</span>
-            <span class="method-icon cashless-icon">✅</span>
+            <span class="method-icon">✅</span>
           </div>
         </div>
 
-        <!-- QRIS section (shown when cashless selected) -->
-        <div class="qris-section" id="qrisSection" style="{{ 'display:flex' if selected_method == 'cashless' else 'display:none' }}">
-          <div class="qris-logo">
-            <img src="{{ url_for('static', filename='img/qris-logo.png') }}" alt="QRIS" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 20%22><text y=%2215%22 font-size=%2210%22 fill=%22white%22>QRIS</text></svg>'">
-          </div>
+        <div class="qris-section" id="qrisSection"
+             style="{{ 'display:none' if selected_method == 'cash' else 'display:flex' }}">
+          <div class="qris-logo-text">QRIS</div>
           <span class="qris-label">Scan QRIS code</span>
           <button class="qris-change-btn" onclick="openQRISPopup()">Change</button>
         </div>
       </div>
-
     </div>
 
-    <!-- RIGHT COLUMN -->
+    <!-- ── RIGHT ─────────────────────────────────────────── -->
     <div class="payment-right">
       <div class="card total-card">
         <h2 class="card-title">Total Due</h2>
         <div class="price-breakdown">
-          <span class="breakdown-label">{{ reservation.duration }} Hours @ {{ '{:,}'.format(room.price_per_hour) }}/hr</span>
-          <span class="breakdown-value">{{ '{:,}'.format(reservation.total_price) }}</span>
+          <span class="breakdown-label">
+            {{ reservation.duration_hours | int }} Hours
+            @ {{ '{:,.0f}'.format(room.price_per_hour) }}/hr
+          </span>
+          <span class="breakdown-value">{{ '{:,.0f}'.format(reservation.total_price) }}</span>
         </div>
         <div class="total-divider"></div>
         <div class="total-row">
           <span class="total-label">Total</span>
-          <span class="total-amount">IDR {{ '{:,}'.format(reservation.total_price) }}</span>
+          <span class="total-amount">IDR {{ '{:,.0f}'.format(reservation.total_price) }}</span>
         </div>
-        <button class="booking-btn" onclick="processBooking()" id="bookingBtn">
+        <button class="booking-btn" id="bookingBtn" onclick="processBooking()">
           Booking ⚡
         </button>
       </div>
@@ -89,56 +96,69 @@
   </div>
 </div>
 
-<!-- QRIS Popup Modal -->
+<!-- ── QRIS Modal ────────────────────────────────────────── -->
 <div class="modal-overlay" id="qrisModal" onclick="closeQRISModal(event)">
   <div class="modal-box">
+
     <div class="modal-header">
       <h3>Scan QRIS untuk Pembayaran</h3>
       <button class="modal-close" onclick="closeQRISPopup()">✕</button>
     </div>
+
     <div class="modal-body">
+      <!-- Amount -->
       <div class="qris-amount">
         <span>Total Pembayaran</span>
-        <strong>IDR {{ '{:,}'.format(reservation.total_price) }}</strong>
+        <strong>IDR {{ '{:,.0f}'.format(reservation.total_price) }}</strong>
       </div>
+
+      <!-- QR Code area -->
       <div class="qris-code-wrapper" id="qrisCodeWrapper">
         <div class="qris-loading" id="qrisLoading">
           <div class="spinner"></div>
           <span>Generating QRIS...</span>
         </div>
-        <div id="qrisCodeDisplay" style="display:none">
+        <div id="qrisCodeDisplay" style="display:none; flex-direction:column; align-items:center;">
           <img id="qrisImage" src="" alt="QRIS Code" class="qris-image">
           <p class="qris-expire" id="qrisExpire"></p>
         </div>
       </div>
-      <div class="qris-steps">
-        <p>1. Buka aplikasi e-wallet atau mobile banking</p>
-        <p>2. Pilih fitur scan QR / QRIS</p>
-        <p>3. Scan kode di atas</p>
-        <p>4. Konfirmasi pembayaran</p>
+
+      <!-- ★ Tombol Simulasi ★ -->
+      <div id="simSection" style="display:none; margin-bottom:14px;">
+        <div class="sim-notice">🧪 Mode Simulasi — tidak perlu scan HP</div>
+        <button class="sim-pay-btn" id="simPayBtn" onclick="simConfirmPayment()">
+          ✅ Simulasi: Konfirmasi Bayar
+        </button>
       </div>
+
+      <!-- Steps -->
+      <div class="qris-steps">
+        <p>1. Buka aplikasi e-wallet / mobile banking</p>
+        <p>2. Pilih fitur Scan QR / QRIS</p>
+        <p>3. Scan kode di atas &amp; konfirmasi pembayaran</p>
+      </div>
+
+      <!-- Status banner -->
       <div class="qris-status" id="qrisStatus"></div>
     </div>
+
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeQRISPopup()">Batal</button>
-      <button class="btn-primary" onclick="checkPaymentStatus()" id="checkStatusBtn">Cek Status Pembayaran</button>
+      <button class="btn-primary" id="checkStatusBtn"
+              onclick="checkPaymentStatus()" disabled>
+        Cek Status Pembayaran
+      </button>
     </div>
+
   </div>
 </div>
-
-<!-- Hidden form for submission -->
-<form id="paymentForm" method="POST" action="{{ url_for('customer.process_payment') }}" style="display:none">
-  <input type="hidden" name="reservation_id" value="{{ reservation.id }}">
-  <input type="hidden" name="payment_method" id="paymentMethodInput" value="{{ selected_method or 'cashless' }}">
-  <input type="hidden" name="payment_reference" id="paymentReferenceInput" value="">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-</form>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  const RESERVATION_ID = "{{ reservation.id }}";
-  const TOTAL_AMOUNT   = {{ reservation.total_price }};
+  const RESERVATION_ID = {{ reservation.id }};
+  const TOTAL_AMOUNT   = {{ reservation.total_price | int }};
 </script>
 <script src="{{ url_for('static', filename='js/payment.js') }}"></script>
 {% endblock %}
