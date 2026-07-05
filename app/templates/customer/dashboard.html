@@ -15,7 +15,7 @@
             <a href="{{ url_for('customer.view_reservation') }}" class="nav-link">Reservasi</a>
         </div>
         <div class="navbar-menu">
-            <span class="navbar-user">Hi, {{ users.name }}</span>
+            <span class="navbar-user">Hi, {{ user.name }}</span>
             <form action="{{ url_for('auth.logout') }}" method="POST" class="navbar-logout-form">
                 <button type="submit" class="navbar-logout-btn">Logout</button>
             </form>
