@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, abort
+from flask import Blueprint, flash, render_template, request, jsonify, redirect, url_for, abort
 from flask_login import login_required, current_user
 import json
 import uuid
@@ -11,14 +11,8 @@ from app.models import Room, Reservation, Payment
 customer_bp = Blueprint("customer", __name__, url_prefix="/customer")
 log = logging.getLogger(__name__)
 
-# ─── In-memory simulasi QRIS ────────────────────────────────
-# { reference_id: { "status": "pending"|"settlement", "expires_at": datetime, "amount": int } }
 _sim_transactions: dict = {}
 
-
-# ─────────────────────────────────────────────────────────────
-#  ROUTE LAMA (tidak diubah)
-# ─────────────────────────────────────────────────────────────
 
 @customer_bp.route("/dashboard")
 @login_required
@@ -45,24 +39,36 @@ def view_room_schedule():
 def view_reservation():
     reservations = (
         Reservation.query.filter_by(customer_id=current_user.id)
+        # Nilai valid ENUM Reservation.status: pending, confirmed, cancelled, completed.
+        # "paid" dan "arrived" bukan nilai ENUM yang sah (arrived dicek lewat is_arrived),
+        # jadi tidak diikutsertakan di filter ini.
+        .filter(Reservation.status.in_(["confirmed", "completed"]))
         .order_by(Reservation.start_time.desc())
         .all()
     )
-    return render_template("customer/payment.html", reservations=reservations)
+    return render_template("customer/reservations.html", reservations=reservations, user=current_user)
 
 
 @customer_bp.route("/reservations", methods=["POST"])
 @login_required
 def make_reservation():
+    """
+    Buat reservasi baru lalu kembalikan JSON berisi URL payment.
+    Mendukung format ISO (dari datetime.fromisoformat) maupun
+    format datetime-local HTML ("YYYY-MM-DDTHH:MM").
+    """
     room_id        = request.form.get("room_id")
     start_time_str = request.form.get("start_time")
     duration_hours = float(request.form.get("duration_hours", 1))
 
-    # ✅ Parse string → datetime
-    start_time = datetime.fromisoformat(start_time_str)
-    # ✅ Hitung end_time secara eksplisit
-    end_time   = start_time + timedelta(hours=duration_hours)
+    # Robust parsing: coba fromisoformat dulu (versi kamu),
+    # fallback ke strptime kalau browser kirim format "YYYY-MM-DDTHH:MM"
+    try:
+        start_time = datetime.fromisoformat(start_time_str)
+    except ValueError:
+        start_time = datetime.strptime(start_time_str, "%Y-%m-%dT%H:%M")
 
+    end_time    = start_time + timedelta(hours=duration_hours)
     room        = Room.query.get_or_404(room_id)
     total_price = float(room.price_per_hour) * duration_hours
 
@@ -70,7 +76,7 @@ def make_reservation():
         room_id=room.id,
         customer_id=current_user.id,
         start_time=start_time,
-        end_time=end_time,          # ✅ Tambahkan ini
+        end_time=end_time,
         duration_hours=duration_hours,
         total_price=total_price,
         source="online",
@@ -79,42 +85,46 @@ def make_reservation():
     db.session.add(reservation)
     db.session.commit()
 
-    return jsonify({"success": True, "reservation": reservation.to_dict()}), 201
+    # Kembalikan JSON (bukan redirect langsung) supaya cocok dengan fetch() di choose_room.js
+    return jsonify(
+        success=True,
+        redirect_url=url_for("customer.payment_page", reservation_id=reservation.id)
+    )
 
-@customer_bp.route("/payments", methods=["POST"])
+
+@customer_bp.route("/reservations/<string:reservation_id>/cancel", methods=["POST"])
 @login_required
-def create_payment():
-    reservation_id = request.form.get("reservation_id")
-    method         = request.form.get("method")
-
+def cancel_reservation(reservation_id):
     reservation = Reservation.query.get_or_404(reservation_id)
 
-    payment = Payment(
-        reservation_id=reservation.id,
-        amount=reservation.total_price,
-        method=method,
-        status="pending" if method == "cashless" else "paid",
-    )
-    db.session.add(payment)
+    if reservation.customer_id != current_user.id:
+        flash("Tidak diizinkan membatalkan reservasi ini.", "danger")
+        return redirect(url_for("customer.view_reservation"))
+
+    if reservation.status != "pending":
+        flash("Hanya reservasi pending yang bisa dibatalkan.", "warning")
+        return redirect(url_for("customer.view_reservation"))
+
+    reservation.status = "cancelled"
     db.session.commit()
+    flash("Reservasi berhasil dibatalkan.", "success")
+    return redirect(url_for("customer.view_reservation"))
 
-    return jsonify({"success": True, "payment": payment.to_dict()}), 201
 
-
-# ─────────────────────────────────────────────────────────────
-#  PAYMENT PAGE  GET /customer/payment/<reservation_id>
-# ─────────────────────────────────────────────────────────────
-
-@customer_bp.route("/payment/<int:reservation_id>", methods=["GET"])
+# ── PAYMENT PAGE ─────────────────────────────────────────────
+@customer_bp.route("/payment/<string:reservation_id>", methods=["GET"])
 @login_required
-def payment_page(reservation_id: int):
+def payment_page(reservation_id: str):
     reservation = Reservation.query.get_or_404(reservation_id)
 
     if reservation.customer_id != current_user.id:
         abort(403)
 
-    if reservation.status == "paid":
-        return redirect(url_for("customer.dashboard"))
+    # "confirmed" = sudah lunas/terkonfirmasi (bukan "paid", karena itu bukan
+    # nilai ENUM yang valid untuk Reservation.status). Kalau sudah lunas,
+    # langsung arahkan ke invoice, bukan tampilkan payment form lagi.
+    if reservation.status == "confirmed":
+        return redirect(url_for("customer.invoice", reservation_id=reservation.id))
 
     room = Room.query.get_or_404(reservation.room_id)
 
@@ -122,24 +132,17 @@ def payment_page(reservation_id: int):
         "customer/payment.html",
         reservation=reservation,
         room=room,
+        price_per_hour=float(room.price_per_hour),
         selected_method="cashless",
+        timedelta=timedelta,
+        user=current_user,
     )
 
 
-# ─────────────────────────────────────────────────────────────
-#  [SIMULASI] GENERATE QRIS
-#  POST /customer/payment/qris/generate
-# ─────────────────────────────────────────────────────────────
-
+# ── GENERATE QRIS ────────────────────────────────────────────
 @customer_bp.route("/payment/qris/generate", methods=["POST"])
 @login_required
 def generate_qris():
-    """
-    MODE SIMULASI — tidak memanggil Midtrans.
-    Membuat reference_id lokal + QR dari api.qrserver.com (gratis, no-auth).
-    Body JSON : { reservation_id, amount }
-    Return    : { success, reference_id, qr_image_url, expires_at, sim_confirm_url }
-    """
     data           = request.get_json(force=True)
     reservation_id = data.get("reservation_id")
     amount         = int(data.get("amount", 0))
@@ -148,11 +151,9 @@ def generate_qris():
     if reservation.customer_id != current_user.id:
         return jsonify(success=False, message="Akses ditolak."), 403
 
-    # Buat reference id unik
     ref_id     = f"SIM-{uuid.uuid4().hex[:12].upper()}"
     expires_at = datetime.utcnow() + timedelta(minutes=15)
 
-    # Simpan ke memory store
     _sim_transactions[ref_id] = {
         "status":         "pending",
         "expires_at":     expires_at,
@@ -160,8 +161,7 @@ def generate_qris():
         "reservation_id": reservation_id,
     }
 
-    # QR code dari layanan publik — encode teks pembayaran sebagai payload
-    qr_payload = f"NEXTLEVEL|{ref_id}|IDR{amount}"
+    qr_payload   = f"NEXTLEVEL|{ref_id}|IDR{amount}"
     qr_image_url = (
         f"https://api.qrserver.com/v1/create-qr-code/"
         f"?size=200x200&data={qr_payload}&bgcolor=ffffff&color=000000"
@@ -172,16 +172,11 @@ def generate_qris():
         reference_id=ref_id,
         qr_image_url=qr_image_url,
         expires_at=expires_at.isoformat() + "Z",
-        # URL tombol "Konfirmasi Bayar" khusus simulasi
         sim_confirm_url=url_for("customer.sim_confirm_qris", reference_id=ref_id),
     )
 
 
-# ─────────────────────────────────────────────────────────────
-#  [SIMULASI] CEK STATUS
-#  GET /customer/payment/qris/status/<reference_id>
-# ─────────────────────────────────────────────────────────────
-
+# ── CEK STATUS QRIS ──────────────────────────────────────────
 @customer_bp.route("/payment/qris/status/<reference_id>", methods=["GET"])
 @login_required
 def check_qris_status(reference_id: str):
@@ -189,26 +184,16 @@ def check_qris_status(reference_id: str):
     if not trx:
         return jsonify(status="not_found"), 404
 
-    # Auto-expire
     if datetime.utcnow() > trx["expires_at"] and trx["status"] == "pending":
         trx["status"] = "expire"
 
     return jsonify(status=trx["status"])
 
 
-# ─────────────────────────────────────────────────────────────
-#  [SIMULASI] TOMBOL "KONFIRMASI BAYAR"
-#  POST /customer/payment/qris/sim-confirm/<reference_id>
-#  — endpoint ini menggantikan scan HP nyata —
-# ─────────────────────────────────────────────────────────────
-
+# ── SIMULASI KONFIRMASI QRIS ─────────────────────────────────
 @customer_bp.route("/payment/qris/sim-confirm/<reference_id>", methods=["POST"])
 @login_required
 def sim_confirm_qris(reference_id: str):
-    """
-    Tombol simulasi: ubah status transaksi → settlement
-    tanpa perlu scan QR sesungguhnya.
-    """
     trx = _sim_transactions.get(reference_id)
     if not trx:
         return jsonify(success=False, message="Transaksi tidak ditemukan."), 404
@@ -220,19 +205,10 @@ def sim_confirm_qris(reference_id: str):
     return jsonify(success=True, status="settlement")
 
 
-# ─────────────────────────────────────────────────────────────
-#  KONFIRMASI FINAL — simpan ke DB
-#  POST /customer/payment/confirm
-# ─────────────────────────────────────────────────────────────
-
+# ── KONFIRMASI FINAL ─────────────────────────────────────────
 @customer_bp.route("/payment/confirm", methods=["POST"])
 @login_required
 def confirm_payment():
-    """
-    JS memanggil ini setelah detect status = settlement.
-    Server re-verify dari _sim_transactions sebelum simpan.
-    Body JSON: { reservation_id, reference_id, method }
-    """
     data           = request.get_json(force=True)
     reservation_id = data.get("reservation_id")
     reference_id   = data.get("reference_id")
@@ -242,27 +218,55 @@ def confirm_payment():
     if reservation.customer_id != current_user.id:
         return jsonify(success=False, message="Akses ditolak."), 403
 
-    # Re-verify di server
     trx = _sim_transactions.get(reference_id)
     if not trx or trx["status"] != "settlement":
         return jsonify(success=False, message="Pembayaran belum terkonfirmasi."), 400
 
-    # Simpan / update Payment
     payment = Payment.query.filter_by(reservation_id=reservation.id).first()
     if not payment:
         payment = Payment(reservation_id=reservation.id)
 
-    payment.method    = method
-    payment.reference = reference_id
-    payment.status    = "paid"
-    payment.amount    = reservation.total_price
+    payment.method             = method
+    payment.cashless_reference = reference_id
+    payment.cashless_provider  = "QRIS"
+    payment.status             = "paid"
+    payment.amount             = reservation.total_price
+    payment.paid_at            = datetime.utcnow()
 
-    reservation.status = "paid"
+    # PENTING: Reservation.status adalah ENUM("pending","confirmed","cancelled","completed").
+    # "paid" BUKAN nilai yang valid dan akan memicu sqlalchemy.exc.DataError (1265) saat commit.
+    # Status "sudah dibayar" ditandai lewat Payment.status = "paid" di atas;
+    # untuk Reservation, nilai yang tepat adalah "confirmed".
+    reservation.status = "confirmed"
 
     db.session.add(payment)
     db.session.commit()
 
-    # Bersihkan dari memory
     _sim_transactions.pop(reference_id, None)
 
-    return jsonify(success=True, redirect_url=url_for("customer.dashboard"))
+    # Arahkan ke halaman Digital Invoice, bukan langsung ke dashboard
+    return jsonify(
+        success=True,
+        redirect_url=url_for("customer.invoice", reservation_id=reservation.id)
+    )
+
+
+# ── DIGITAL INVOICE ────────────────────────────────────────────
+@customer_bp.route("/invoice/<string:reservation_id>", methods=["GET"])
+@login_required
+def invoice(reservation_id: str):
+    reservation = Reservation.query.get_or_404(reservation_id)
+
+    if reservation.customer_id != current_user.id:
+        abort(403)
+
+    room    = Room.query.get_or_404(reservation.room_id)
+    payment = Payment.query.filter_by(reservation_id=reservation.id).first()
+
+    return render_template(
+        "customer/invoice.html",
+        reservation=reservation,
+        room=room,
+        payment=payment,
+        user=current_user,
+    )

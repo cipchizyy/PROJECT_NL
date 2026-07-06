@@ -1,164 +1,169 @@
-{% extends "customer/dashboard.html" %}
-{% block title %}Payment – Next Level{% endblock %}
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/payment.css') }}">
-{% endblock %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Next Level Rent - Payment</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/payment.css') }}">
+</head>
+<body>
 
-{% block content %}
-<div class="payment-wrapper">
-  <div class="payment-container">
+    <nav class="navbar">
+        <span class="navbar-brand">NEXT LEVEL</span>
+        <div class="navbar-right">
+            <button class="navbar-icon-btn" title="Notifikasi">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+            </button>
+            <button class="navbar-icon-btn" title="Profil">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            </button>
+        </div>
+    </nav>
 
-    <!-- ── LEFT ─────────────────────────────────────────── -->
-    <div class="payment-left">
-
-      <!-- Reservation Summary -->
-      <div class="card">
-        <h2 class="card-title"><span class="icon">🛒</span> Reservation Summary</h2>
-        <div class="reservation-info">
-          <div class="room-image">
-            <img src="{{ room.image_url or url_for('static', filename='img/room-placeholder.jpg') }}"
-                 alt="{{ room.name }}"
-                 onerror="this.style.display='none'">
-          </div>
-          <div class="room-details">
-            <span class="room-type">{{ room.room_type | upper }}</span>
-            <span class="room-code">{{ room.room_code }}</span>
-            <div class="room-meta">
-              <div class="meta-item">
-                <span class="meta-label">DATE</span>
-                <span class="meta-value">{{ reservation.start_time.strftime('%B %d, %Y') }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">TIME SLOT</span>
-                <span class="meta-value">
-                  {{ reservation.start_time.strftime('%H:%M') }} –
-                  {{ (reservation.start_time + timedelta(hours=reservation.duration_hours)).strftime('%H:%M') }}
-                </span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">DURATION</span>
-                <span class="meta-value">{{ reservation.duration_hours | int }} Hours</span>
-              </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
             </div>
-          </div>
-        </div>
-      </div>
+        {% endif %}
+    {% endwith %}
 
-      <!-- Payment Method -->
-      <div class="card">
-        <h2 class="card-title"><span class="icon">💳</span> Payment Method</h2>
-        <div class="payment-methods">
-          <div class="method-option {% if selected_method == 'cash' %}active{% endif %}"
-               data-method="cash" onclick="selectMethod('cash')">
-            <span class="method-name">Cash</span>
-            <span class="method-desc">Bayar di kasir</span>
-            <span class="method-icon">🖨</span>
-          </div>
-          <div class="method-option {% if selected_method != 'cash' %}active{% endif %}"
-               data-method="cashless" onclick="selectMethod('cashless')">
-            <span class="method-name">Cashless</span>
-            <span class="method-desc">QRIS</span>
-            <span class="method-icon">✅</span>
-          </div>
+    <!-- Data untuk JS (dipakai generate_qris & confirm_payment) -->
+    <script>
+        const RESERVATION_ID  = "{{ reservation.id }}";
+        const RESERVATION_AMOUNT = {{ reservation.total_price | int }};
+        const URL_GENERATE_QRIS  = "{{ url_for('customer.generate_qris') }}";
+        const URL_CONFIRM        = "{{ url_for('customer.confirm_payment') }}";
+        const URL_DASHBOARD      = "{{ url_for('customer.dashboard') }}";
+    </script>
+
+    <div class="payment-page">
+
+        <!-- KOLOM KIRI: Summary + Metode Pembayaran -->
+        <div>
+            <!-- Reservation Summary -->
+            <div class="pay-card">
+                <h2 class="pay-card-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+                    Reservation Summary
+                </h2>
+
+                <div class="res-summary-row">
+                    <div class="res-thumb">
+                        {% if room.image_url %}
+                            <img src="{{ room.image_url }}" alt="{{ room.name }}">
+                        {% else %}
+                            {{ room.console_type }}
+                        {% endif %}
+                    </div>
+
+                    <div class="res-info">
+                        <p class="res-env-badge">{{ room.environment_label | upper }}</p>
+                        <p class="res-room-code">{{ room.room_code }}</p>
+
+                        <div class="res-meta-grid">
+                            <div class="res-meta-item">
+                                <label>Date</label>
+                                <span>{{ reservation.start_time.strftime("%B %d, %Y") }}</span>
+                            </div>
+                            <div class="res-meta-item">
+                                <label>Time Slot</label>
+                                <span>{{ reservation.start_time.strftime("%H:%M") }} - {{ reservation.end_time.strftime("%H:%M") }}</span>
+                            </div>
+                            <div class="res-meta-item">
+                                <label>Duration</label>
+                                <span>{{ reservation.duration_hours | int }} Hours</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Method -->
+            <div class="pay-card">
+                <h2 class="pay-card-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                    Payment Method
+                </h2>
+
+                <div class="method-options">
+                    <!-- Cash -->
+                    <div class="method-card" id="card-cash" data-method="cash">
+                        <div class="method-card-check">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1a0e22" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <div class="method-card-icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+                        </div>
+                        <p class="method-card-name">Cash</p>
+                        <p class="method-card-sub">Bayar di kasir</p>
+                    </div>
+
+                    <!-- Cashless -->
+                    <div class="method-card selected" id="card-cashless" data-method="cashless">
+                        <div class="method-card-check">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1a0e22" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <div class="method-card-icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                        </div>
+                        <p class="method-card-name">Cashless</p>
+                        <p class="method-card-sub">QRIS</p>
+                    </div>
+                </div>
+
+                <!-- QRIS detail panel -->
+                <div class="qris-panel show" id="qris-panel">
+                    <span class="qris-badge">QRIS</span>
+                    <span class="qris-text">Scan QRIS code</span>
+                    <button type="button" class="qris-change-btn" id="qris-change-btn">Change</button>
+                </div>
+
+                <!-- Area QR image + countdown, muncul setelah generate -->
+                <div class="qris-scan-area" id="qris-scan-area">
+                    <img id="qris-image" src="" alt="QR Code" class="qris-image">
+                    <p class="qris-expires" id="qris-expires">Berlaku selama <strong id="qris-countdown">15:00</strong></p>
+                    <p class="qris-status" id="qris-status-text"></p>
+
+                    <!-- Tombol simulasi konfirmasi QRIS (untuk testing) -->
+                    <button type="button" class="qris-sim-btn" id="qris-sim-btn">
+                        ⚡ Simulasi Bayar (Testing)
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <div class="qris-section" id="qrisSection"
-             style="{{ 'display:none' if selected_method == 'cash' else 'display:flex' }}">
-          <div class="qris-logo-text">QRIS</div>
-          <span class="qris-label">Scan QRIS code</span>
-          <button class="qris-change-btn" onclick="openQRISPopup()">Change</button>
+        <!-- KOLOM KANAN: Total Due -->
+        <div class="total-panel">
+            <h2 class="total-panel-title">Total Due</h2>
+
+            <div class="total-breakdown">
+                <span class="total-breakdown-label">
+                    {{ reservation.duration_hours | int }} Hours @
+                    {{ "{:,.0f}".format(price_per_hour) }}/hr
+                </span>
+                <span class="total-breakdown-value">
+                    {{ "{:,.0f}".format(reservation.total_price) }}
+                </span>
+            </div>
+
+            <div class="total-row">
+                <span class="total-label">Total</span>
+                <span class="total-value">IDR {{ "{:,.0f}".format(reservation.total_price) }}</span>
+            </div>
+
+            <button type="button" id="booking-btn" class="booking-btn">
+                Booking
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 13 9 20 9"/><path d="M21 14l-9-9-9 9"/></svg>
+            </button>
+
+            <p class="booking-note" id="booking-note">Pilih metode pembayaran untuk melanjutkan.</p>
         </div>
-      </div>
+
     </div>
 
-    <!-- ── RIGHT ─────────────────────────────────────────── -->
-    <div class="payment-right">
-      <div class="card total-card">
-        <h2 class="card-title">Total Due</h2>
-        <div class="price-breakdown">
-          <span class="breakdown-label">
-            {{ reservation.duration_hours | int }} Hours
-            @ {{ '{:,.0f}'.format(room.price_per_hour) }}/hr
-          </span>
-          <span class="breakdown-value">{{ '{:,.0f}'.format(reservation.total_price) }}</span>
-        </div>
-        <div class="total-divider"></div>
-        <div class="total-row">
-          <span class="total-label">Total</span>
-          <span class="total-amount">IDR {{ '{:,.0f}'.format(reservation.total_price) }}</span>
-        </div>
-        <button class="booking-btn" id="bookingBtn" onclick="processBooking()">
-          Booking ⚡
-        </button>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- ── QRIS Modal ────────────────────────────────────────── -->
-<div class="modal-overlay" id="qrisModal" onclick="closeQRISModal(event)">
-  <div class="modal-box">
-
-    <div class="modal-header">
-      <h3>Scan QRIS untuk Pembayaran</h3>
-      <button class="modal-close" onclick="closeQRISPopup()">✕</button>
-    </div>
-
-    <div class="modal-body">
-      <!-- Amount -->
-      <div class="qris-amount">
-        <span>Total Pembayaran</span>
-        <strong>IDR {{ '{:,.0f}'.format(reservation.total_price) }}</strong>
-      </div>
-
-      <!-- QR Code area -->
-      <div class="qris-code-wrapper" id="qrisCodeWrapper">
-        <div class="qris-loading" id="qrisLoading">
-          <div class="spinner"></div>
-          <span>Generating QRIS...</span>
-        </div>
-        <div id="qrisCodeDisplay" style="display:none; flex-direction:column; align-items:center;">
-          <img id="qrisImage" src="" alt="QRIS Code" class="qris-image">
-          <p class="qris-expire" id="qrisExpire"></p>
-        </div>
-      </div>
-
-      <!-- ★ Tombol Simulasi ★ -->
-      <div id="simSection" style="display:none; margin-bottom:14px;">
-        <div class="sim-notice">🧪 Mode Simulasi — tidak perlu scan HP</div>
-        <button class="sim-pay-btn" id="simPayBtn" onclick="simConfirmPayment()">
-          ✅ Simulasi: Konfirmasi Bayar
-        </button>
-      </div>
-
-      <!-- Steps -->
-      <div class="qris-steps">
-        <p>1. Buka aplikasi e-wallet / mobile banking</p>
-        <p>2. Pilih fitur Scan QR / QRIS</p>
-        <p>3. Scan kode di atas &amp; konfirmasi pembayaran</p>
-      </div>
-
-      <!-- Status banner -->
-      <div class="qris-status" id="qrisStatus"></div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="closeQRISPopup()">Batal</button>
-      <button class="btn-primary" id="checkStatusBtn"
-              onclick="checkPaymentStatus()" disabled>
-        Cek Status Pembayaran
-      </button>
-    </div>
-
-  </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-  const RESERVATION_ID = {{ reservation.id }};
-  const TOTAL_AMOUNT   = {{ reservation.total_price | int }};
-</script>
-<script src="{{ url_for('static', filename='js/payment.js') }}"></script>
-{% endblock %}
+    <script src="{{ url_for('static', filename='js/payment.js') }}"></script>
+</body>
+</html>

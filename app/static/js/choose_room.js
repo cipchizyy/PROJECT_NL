@@ -153,10 +153,16 @@ function updateCartBar() {
 }
 
 /* ── Confirm & Book ──────────────────────────────────────── */
+let isSubmittingReservation = false; // cegah double-submit (klik ganda / double-fire)
+
 $('modal-confirm').addEventListener('click', () => {
   if (!state.selectedRoom || !state.selectedDate || !state.selectedDuration || !state.selectedTime) return;
+  if (isSubmittingReservation) return; // sudah ada request berjalan, abaikan klik tambahan
 
   const startDateTime = `${state.selectedDate}T${state.selectedTime}:00`;
+
+  isSubmittingReservation = true;
+  $('modal-confirm').disabled = true;
 
   // Submit via fetch ke endpoint make_reservation
   fetch('/customer/reservations', {
@@ -168,17 +174,26 @@ $('modal-confirm').addEventListener('click', () => {
       duration_hours: state.selectedDuration,
     }),
   })
-  .then(r => r.json())
+  .then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  })
   .then(data => {
-    if (data.success) {
-      closeModal();
-      // Redirect ke halaman reservasi
-      window.location.href = '/customer/reservations';
+    // Backend mengirim { success, redirect_url } — bukan { success, reservation }
+    if (data.success && data.redirect_url) {
+      window.location.href = data.redirect_url;
     } else {
       alert(data.message || 'Gagal membuat reservasi. Coba lagi.');
     }
   })
-  .catch(() => alert('Terjadi kesalahan. Periksa koneksi.'));
+  .catch(err => {
+    console.error(err);
+    alert('Terjadi kesalahan. Periksa koneksi.');
+  })
+  .finally(() => {
+    isSubmittingReservation = false;
+    $('modal-confirm').disabled = false;
+  });
 });
 
 /* ── Room card click ─────────────────────────────────────── */
@@ -222,4 +237,4 @@ document.addEventListener('DOMContentLoaded', () => {
   initEnvSidebar();
   initRoomCards();
   filterRooms(); // tampilkan hanya regular by default
-});
+}); 

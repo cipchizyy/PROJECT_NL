@@ -202,40 +202,8 @@ body {
 
 /* PRINT MODE — dipakai saat "Download PDF Invoice" (window.print) */
 @media print {
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    color-adjust: exact !important;
-  }
-
   .nav, .back-link, .btn-download { display: none !important; }
-
-  html, body {
-    background: #fff;
-    color: #000;
-    min-height: 0 !important;
-    height: auto !important;
-  }
-
-  .invoice-wrapper {
-    margin: 0 auto !important;
-    max-width: 480px;
-  }
-
+  body { background: #fff; color: #000; }
   .receipt-card { border-color: #ccc; }
-
-  /* Gradient text (background-clip: text) sering gagal render saat print,
-     jadi di mode print di-fallback ke warna solid supaya tetap terbaca. */
-  .receipt-header__title {
-    background: none !important;
-    -webkit-text-fill-color: initial !important;
-    color: var(--accent-pink) !important;
-  }
-
-  .verified-badge {
-    background: var(--accent-pink) !important;
-    color: #fff !important;
-  }
-
-  .btn-download { display: none !important; }
+  .invoice-wrapper { margin: 0 auto; }
 }
