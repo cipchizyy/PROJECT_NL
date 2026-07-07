@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Next Level - Manage Game</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/games.css') }}">
+</head>
+<body style="margin:0; background:#0d0d12; font-family:'Segoe UI', Arial, sans-serif;">
+<div class="admin-layout">
+    {% set active_menu = 'manage_game' %}
+    {% include "admin/sidebar.html" %}
+
+    <main class="admin-main">
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-wrap">
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">
+                <span>{{ message }}</span>
+                <button class="flash-close" onclick="this.parentElement.remove()">×</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <h1 class="gm-title">Game Library</h1>
+
+        <!-- Game Grid -->
+        <div class="gm-grid" id="gameGrid">
+
+            <!-- Add New Game Card -->
+            <div class="gm-card-add" id="btnAddGame">
+                <div class="gm-add-inner">
+                    <div class="gm-add-icon">+</div>
+                    <p class="gm-add-label">Add<br>Game</p>
+                    <p class="gm-add-sub">Expand your<br>Library</p>
+                </div>
+            </div>
+
+            <!-- Game Cards -->
+            {% for game in games %}
+            <div class="gm-card-game" data-game-id="{{ game.id }}">
+                <div class="gm-card-img">
+                    {% if game.image_url %}
+                    <img src="{{ game.image_url }}" alt="{{ game.name }}">
+                    {% else %}
+                    <div class="gm-img-placeholder">🎮</div>
+                    {% endif %}
+                </div>
+                <div class="gm-card-body">
+                    <span class="gm-category">{{ game.category or 'Uncategorized' }}</span>
+                    <span class="gm-name">{{ game.name }}</span>
+                    {% if game.description %}
+                    <span class="gm-desc">{{ game.description }}</span>
+                    {% endif %}
+                    <span class="gm-meta">Terpasang di {{ game.rooms | length }} room</span>
+                    <div class="gm-card-actions">
+                        <button class="gm-btn gm-btn-edit"
+                            onclick="openEditGameModal('{{ game.id }}', '{{ game.name | e }}', '{{ game.category or '' }}', '{{ game.description or '' | e }}')">
+                            <span>✏</span> Edit
+                        </button>
+                        <button class="gm-btn gm-btn-delete"
+                            onclick="confirmDeleteGame('{{ game.id }}', '{{ game.name | e }}')">
+                            <span>🗑</span> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% if not games %}
+            <div class="gm-empty">Belum ada game. Klik <strong>+ Add Game</strong> untuk menambahkan game pertama.</div>
+            {% endif %}
+        </div>
+    </main>
+</div>
+
+<!-- ══════════════ MODAL: ADD GAME ══════════════ -->
+<div class="modal-overlay" id="modalAddGame">
+    <div class="modal-panel">
+        <div class="modal-header">
+            <h2 class="modal-title">Tambah Game Baru</h2>
+            <button class="modal-close" onclick="closeModal('modalAddGame')">×</button>
+        </div>
+        <form action="{{ url_for('admin.create_game') }}" method="POST" enctype="multipart/form-data" class="modal-form">
+            <div class="form-group">
+                <label>Nama Game</label>
+                <input type="text" name="name" placeholder="God of War Ragnarok" required>
+            </div>
+            <div class="form-group">
+                <label>Kategori / Platform</label>
+                <select name="category">
+                    <option value="">Pilih kategori</option>
+                    <option value="PS5">PS5</option>
+                    <option value="PS4">PS4</option>
+                    <option value="PS4 Pro">PS4 Pro</option>
+                    <option value="Nintendo Switch">Nintendo Switch</option>
+                    <option value="Board Game">Board Game</option>
+                    <option value="Lainnya">Lainnya</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Deskripsi (opsional)</label>
+                <textarea name="description" placeholder="Deskripsi singkat game..." rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Cover / Thumbnail Game</label>
+                <div class="file-upload-area">
+                    <input type="file" name="image" accept="image/*" id="addGameFileInput" style="display:none">
+                    <div class="file-upload-placeholder" onclick="document.getElementById('addGameFileInput').click()">
+                        <span class="file-upload-icon">🖼</span>
+                        <span>Klik untuk upload cover</span>
+                        <span class="file-upload-hint">JPG, PNG — maks 5MB</span>
+                    </div>
+                    <p class="file-name" id="addGameFileName"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeModal('modalAddGame')">Batal</button>
+                <button type="submit" class="btn-save">Tambah Game</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: EDIT GAME ══════════════ -->
+<div class="modal-overlay" id="modalEditGame">
+    <div class="modal-panel">
+        <div class="modal-header">
+            <h2 class="modal-title">Edit Game</h2>
+            <button class="modal-close" onclick="closeModal('modalEditGame')">×</button>
+        </div>
+        <form id="editGameForm" method="POST" enctype="multipart/form-data" class="modal-form">
+            <div class="form-group">
+                <label>Nama Game</label>
+                <input type="text" name="name" id="edit_game_name" required>
+            </div>
+            <div class="form-group">
+                <label>Kategori / Platform</label>
+                <select name="category" id="edit_game_category">
+                    <option value="">Pilih kategori</option>
+                    <option value="PS5">PS5</option>
+                    <option value="PS4">PS4</option>
+                    <option value="PS4 Pro">PS4 Pro</option>
+                    <option value="Nintendo Switch">Nintendo Switch</option>
+                    <option value="Board Game">Board Game</option>
+                    <option value="Lainnya">Lainnya</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Deskripsi (opsional)</label>
+                <textarea name="description" id="edit_game_description" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Ganti Cover Game (opsional)</label>
+                <div class="file-upload-area">
+                    <input type="file" name="image" accept="image/*" id="editGameFileInput" style="display:none">
+                    <div class="file-upload-placeholder" onclick="document.getElementById('editGameFileInput').click()">
+                        <span class="file-upload-icon">🖼</span>
+                        <span>Klik untuk ganti cover</span>
+                        <span class="file-upload-hint">Biarkan kosong jika tidak ingin ganti</span>
+                    </div>
+                    <p class="file-name" id="editGameFileName"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeModal('modalEditGame')">Batal</button>
+                <button type="submit" class="btn-save">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: DELETE CONFIRM ══════════════ -->
+<div class="modal-overlay" id="modalDeleteGame">
+    <div class="modal-panel modal-panel-sm">
+        <div class="modal-header">
+            <h2 class="modal-title modal-title-danger">Hapus Game?</h2>
+            <button class="modal-close" onclick="closeModal('modalDeleteGame')">×</button>
+        </div>
+        <p class="delete-confirm-text">
+            Game <strong id="deleteGameName"></strong> akan dihapus permanen dan otomatis lepas dari semua room. Tindakan ini tidak bisa dibatalkan.
+        </p>
+        <form id="deleteGameForm" method="POST">
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeModal('modalDeleteGame')">Batal</button>
+                <button type="submit" class="btn-delete">Ya, Hapus</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/admin/games.js') }}"></script>
+</body>
+</html>

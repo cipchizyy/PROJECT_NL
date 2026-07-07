@@ -368,3 +368,63 @@
   .rm-tabs { gap: 6px; }
   .rm-tab { padding: 5px 12px; font-size: 12px; }
 }
+/* ============================================================
+   TAMBAHAN untuk rooms.css — tombol "🎮 Games" & checklist assign modal
+   ============================================================ */
+
+.rm-card-actions { flex-wrap: wrap; }
+.rm-btn-games {
+  background: rgba(124,58,237,.08); color: #a78bfa;
+  border: 1px solid rgba(124,58,237,.25);
+}
+.rm-btn-games:hover { background: rgba(124,58,237,.16); }
+
+/* ---------- Checklist assign game ke room ---------- */
+.rmg-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 340px;
+  overflow-y: auto;
+  margin-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a3a transparent;
+}
+.rmg-check-list::-webkit-scrollbar { width: 6px; }
+.rmg-check-list::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
+
+.rmg-check-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.rmg-check-item:hover { background: #1c1c27; }
+
+.rmg-check-item input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: #7c3aed;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.rmg-check-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  background: #1e2030 center/cover no-repeat;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #555570;
+}
+
+.rmg-check-label { flex: 1; min-width: 0; }
+.rmg-check-name { font-size: 13px; font-weight: 700; color: #e0e0f0; }
+.rmg-check-cat { font-size: 11px; color: #666880; }

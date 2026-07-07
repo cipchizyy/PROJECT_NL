@@ -73,14 +73,16 @@ function closeModal(id) {
   document.body.style.overflow = "";
 }
 
-/* ── Open Edit Modal ── */
-function openEditModal(id, code, name, env, console_type, price, games, room_type, seating, status, desc) {
+/* ── Open Edit Modal ──
+   Catatan: parameter "games"/game_count sudah DIHAPUS dari sini karena
+   game_count sekarang computed property (otomatis dari room.games),
+   bukan lagi input manual. Jumlah game dikelola lewat tombol "🎮 Games". */
+function openEditModal(id, code, name, env, console_type, price, room_type, seating, status, desc) {
   document.getElementById("edit_room_code").value    = code;
   document.getElementById("edit_name").value         = name;
   document.getElementById("edit_environment").value  = env;
   document.getElementById("edit_console_type").value = console_type;
   document.getElementById("edit_price_per_hour").value = price;
-  document.getElementById("edit_game_count").value   = games;
   document.getElementById("edit_room_type").value    = room_type;
   document.getElementById("edit_seating_type").value = seating;
   document.getElementById("edit_status").value       = status;
@@ -130,4 +132,45 @@ function confirmDelete(id, code) {
   document.getElementById("deleteRoomCode").textContent = code;
   document.getElementById("deleteForm").action = `/admin/rooms/${id}/delete`;
   openModal("modalDelete");
+}
+
+/* ── Open Kelola Game (Assign) Modal ──
+   ALL_GAMES disuntikkan lewat <script> inline di rooms.html (dari all_games_json).
+   assignedGameIds = array id game yang SUDAH terpasang di room ini. */
+function openGamesModal(roomId, roomCode, assignedGameIds) {
+  document.getElementById("games_room_code").textContent = roomCode;
+  document.getElementById("gamesForm").action = `/admin/rooms/${roomId}/games`;
+
+  const listEl = document.getElementById("rmgCheckList");
+
+  if (!ALL_GAMES.length) {
+    listEl.innerHTML = `
+      <div class="gm-empty" style="padding:24px 4px;">
+        Belum ada game terdaftar. Tambahkan dulu lewat menu <strong>Manage Game</strong>.
+      </div>`;
+  } else {
+    listEl.innerHTML = ALL_GAMES.map((game) => {
+      const checked = assignedGameIds.includes(game.id) ? "checked" : "";
+      const thumbStyle = game.image_url ? `background-image:url('${game.image_url}')` : "";
+      const thumbIcon = game.image_url ? "" : "🎮";
+      return `
+        <label class="rmg-check-item">
+          <input type="checkbox" name="game_ids" value="${game.id}" ${checked}>
+          <div class="rmg-check-thumb" style="${thumbStyle}">${thumbIcon}</div>
+          <div class="rmg-check-label">
+            <div class="rmg-check-name">${escapeRmgHtml(game.name)}</div>
+            <div class="rmg-check-cat">${escapeRmgHtml(game.category || "Uncategorized")}</div>
+          </div>
+        </label>
+      `;
+    }).join("");
+  }
+
+  openModal("modalGames");
+}
+
+function escapeRmgHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str || "";
+  return div.innerHTML;
 }

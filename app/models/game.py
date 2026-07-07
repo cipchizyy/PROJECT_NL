@@ -11,7 +11,7 @@ def generate_uuid():
 class Game(db.Model):
     """
     Game yang bisa dimainkan di sebuah room (mis: PS5 - God of War Ragnarok).
-    Terkait use case baru: Manage Game (Admin) -> Input Game -> Assign Game to Room.
+    Terkait use case: Manage Game (Admin) -> Input Game -> Assign Game to Room.
     Dari POV Customer, game-game ini muncul di halaman detail room.
     """
     __tablename__ = "games"
@@ -35,7 +35,7 @@ class Game(db.Model):
             "category": self.category,
             "description": self.description,
             "image_url": self.image_url,
-            "room_count": len(self.rooms) if self.rooms is not None else 0,
+            "room_count": len(self.rooms),
         }
 
     def __repr__(self):

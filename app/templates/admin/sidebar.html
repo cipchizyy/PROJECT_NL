@@ -17,6 +17,10 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 9h18" stroke="currentColor" stroke-width="1.5"/></svg>
             Manage Room
         </a>
+        <a href="{{ url_for('admin.manage_game') }}"
+            class="sidebar-link {{ 'active' if active_menu == 'manage_game' else '' }}">
+            Manage Game
+        </a>
         <a href="{{ url_for('admin.create_sales_report') }}" class="sidebar-link {{ 'active' if active_menu == 'reports' else '' }}">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19V5M10 19V9M16 19v-7M22 19H2" stroke="currentColor" stroke-width="1.5"/></svg>
             Generate Reports

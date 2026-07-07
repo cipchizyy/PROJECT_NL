@@ -81,8 +81,11 @@
                         <button class="rm-btn rm-btn-detail" onclick="openDetailModal('{{ room.id }}', '{{ room.room_code }}', '{{ room.name }}', '{{ room.environment }}', '{{ room.console_type }}', {{ room.price_per_hour }}, {{ room.game_count }}, '{{ room.room_type }}', '{{ room.seating_type or '' }}', '{{ room.status }}', '{{ room.image_url or '' }}', '{{ room.description or '' }}')">
                             <span>👁</span> Details
                         </button>
-                        <button class="rm-btn rm-btn-edit" onclick="openEditModal('{{ room.id }}', '{{ room.room_code }}', '{{ room.name }}', '{{ room.environment }}', '{{ room.console_type }}', {{ room.price_per_hour }}, {{ room.game_count }}, '{{ room.room_type }}', '{{ room.seating_type or '' }}', '{{ room.status }}', '{{ room.description or '' }}')">
+                        <button class="rm-btn rm-btn-edit" onclick="openEditModal('{{ room.id }}', '{{ room.room_code }}', '{{ room.name }}', '{{ room.environment }}', '{{ room.console_type }}', {{ room.price_per_hour }}, '{{ room.room_type }}', '{{ room.seating_type or '' }}', '{{ room.status }}', '{{ room.description or '' }}')">
                             <span>✏</span> Edit
+                        </button>
+                        <button class="rm-btn rm-btn-games" onclick='openGamesModal("{{ room.id }}", "{{ room.room_code }}", {{ room.games | map(attribute="id") | list | tojson }})'>
+                            <span>🎮</span> Games
                         </button>
                         <button class="rm-btn rm-btn-delete" onclick="confirmDelete('{{ room.id }}', '{{ room.room_code }}')">
                             <span>🗑</span> Delete
@@ -133,22 +136,16 @@
                     <input type="number" name="price_per_hour" placeholder="10000" min="0" required>
                 </div>
                 <div class="form-group">
-                    <label>Jumlah Game</label>
-                    <input type="number" name="game_count" placeholder="13" min="0" value="0">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
                     <label>Tipe Ruangan</label>
                     <select name="room_type">
                         <option value="non_smoking">Non-Smoking Room</option>
                         <option value="smoking">Smoking Room</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Tipe Seating</label>
-                    <input type="text" name="seating_type" placeholder="Cozy Beanbag Seating">
-                </div>
+            </div>
+            <div class="form-group form-group-full">
+                <label>Tipe Seating</label>
+                <input type="text" name="seating_type" placeholder="Cozy Beanbag Seating">
             </div>
             <div class="form-group form-group-full">
                 <label>Status</label>
@@ -174,6 +171,9 @@
                     <p class="file-name" id="addFileName"></p>
                 </div>
             </div>
+            <p style="font-size:11px; color:#555570; margin:-6px 0 4px;">
+                💡 Jumlah game otomatis mengikuti berapa game yang kamu pasang lewat tombol <strong>🎮 Games</strong> setelah room ini dibuat.
+            </p>
             <div class="modal-footer">
                 <button type="button" class="btn-cancel" onclick="closeModal('modalAdd')">Batal</button>
                 <button type="submit" class="btn-save">Tambah Room</button>
@@ -220,22 +220,16 @@
                     <input type="number" name="price_per_hour" id="edit_price_per_hour" min="0" required>
                 </div>
                 <div class="form-group">
-                    <label>Jumlah Game</label>
-                    <input type="number" name="game_count" id="edit_game_count" min="0">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
                     <label>Tipe Ruangan</label>
                     <select name="room_type" id="edit_room_type">
                         <option value="non_smoking">Non-Smoking Room</option>
                         <option value="smoking">Smoking Room</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Tipe Seating</label>
-                    <input type="text" name="seating_type" id="edit_seating_type">
-                </div>
+            </div>
+            <div class="form-group form-group-full">
+                <label>Tipe Seating</label>
+                <input type="text" name="seating_type" id="edit_seating_type">
             </div>
             <div class="form-group form-group-full">
                 <label>Status</label>
@@ -319,6 +313,31 @@
     </div>
 </div>
 
+<!-- ══════════════ MODAL: KELOLA GAME (ASSIGN) ══════════════ -->
+<div class="modal-overlay" id="modalGames">
+    <div class="modal-panel">
+        <div class="modal-header">
+            <h2 class="modal-title">Kelola Game &middot; <span id="games_room_code"></span></h2>
+            <button class="modal-close" onclick="closeModal('modalGames')">×</button>
+        </div>
+        <form id="gamesForm" method="POST">
+            <div class="modal-form">
+                <div class="rmg-check-list" id="rmgCheckList">
+                    <!-- diisi via JS dari ALL_GAMES -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeModal('modalGames')">Batal</button>
+                <button type="submit" class="btn-save">Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Semua game yang ada di sistem, dipakai JS untuk render checklist assign per room -->
+<script>
+    const ALL_GAMES = {{ all_games_json | tojson }};
+</script>
 <script src="{{ url_for('static', filename='../static/js/admin/rooms.js') }}"></script>
 </body>
 </html>

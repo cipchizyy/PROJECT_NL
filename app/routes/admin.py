@@ -6,9 +6,8 @@ from sqlalchemy import func
 from flask import (
     Blueprint, render_template, request, jsonify, abort,
     flash, redirect, url_for, send_file,
-)
+    )
 from flask_login import login_required, current_user
-
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import cm
@@ -68,9 +67,17 @@ def dashboard():
 @admin_bp.route("/rooms", methods=["GET"])
 @admin_required
 def manage_room():
-    """Use case: Manage Room."""
-    rooms = Room.query.order_by(Room.room_code).all()
-    return render_template("admin/rooms.html", rooms=rooms)
+    rooms = Room.query.order_by(Room.created_at.desc()).all()
+    
+    all_games = Game.query.order_by(Game.name).all()        # <-- pastikan baris ini ADA
+    all_games_json = [g.to_dict() for g in all_games]         # <-- pastikan baris ini ADA
+    
+    return render_template(
+        "admin/rooms.html",
+        user=current_user,
+        rooms=rooms,
+        all_games_json=all_games_json,                        # <-- pastikan parameter ini ADA
+    )
 
 
 @admin_bp.route("/rooms", methods=["POST"])
@@ -82,7 +89,6 @@ def create_room():
         console_type=request.form.get("console_type"),
         environment=request.form.get("environment", "regular"),
         price_per_hour=request.form.get("price_per_hour"),
-        game_count=int(request.form.get("game_count", 0)),
         room_type=request.form.get("room_type", "non_smoking"),
         seating_type=request.form.get("seating_type") or None,
         description=request.form.get("description") or None,
@@ -113,7 +119,6 @@ def edit_room(room_id):
     room.console_type = request.form.get("console_type", room.console_type)
     room.environment = request.form.get("environment", room.environment)
     room.price_per_hour = request.form.get("price_per_hour", room.price_per_hour)
-    room.game_count = int(request.form.get("game_count", room.game_count))
     room.room_type = request.form.get("room_type", room.room_type)
     room.seating_type = request.form.get("seating_type") or room.seating_type
     room.description = request.form.get("description") or room.description
@@ -146,6 +151,8 @@ def delete_room(room_id):
 def reservation_list():
     """Halaman 'Reservation' di sidebar admin -- tabel lengkap semua reservasi."""
     search = request.args.get("search", "").strip()
+    start_date_str = request.args.get("start_date", "").strip()
+    end_date_str = request.args.get("end_date", "").strip()
 
     query = Reservation.query.join(Room)
 
@@ -158,12 +165,31 @@ def reservation_list():
             )
         )
 
+    # Filter rentang tanggal berdasarkan start_time reservasi.
+    # end_date diperlakukan inklusif (seluruh hari itu ikut), sama seperti
+    # pola yang sudah dipakai di _query_paid_payments.
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+            query = query.filter(Reservation.start_time >= start_date)
+        except ValueError:
+            start_date_str = ""
+
+    if end_date_str:
+        try:
+            end_date_exclusive = datetime.strptime(end_date_str, "%Y-%m-%d") + timedelta(days=1)
+            query = query.filter(Reservation.start_time < end_date_exclusive)
+        except ValueError:
+            end_date_str = ""
+
     reservations = query.order_by(Reservation.start_time.desc()).limit(50).all()
 
     return render_template(
         "admin/reservations.html",
         reservations=reservations,
         search=search,
+        start_date=start_date_str,
+        end_date=end_date_str,
     )
 
 
@@ -262,28 +288,28 @@ def manage_game():
 @admin_bp.route("/games", methods=["POST"])
 @admin_required
 def create_game():
-    """Use case: Manage Game -> tambah game baru."""
     name = request.form.get("name", "").strip()
-    category = request.form.get("category", "").strip() or None
+    category = request.form.get("category") or None
     description = request.form.get("description", "").strip() or None
 
     if not name:
-        return jsonify({"success": False, "message": "Nama game wajib diisi."}), 400
+        flash("Nama game wajib diisi.", "danger")
+        return redirect(url_for("admin.manage_game"))
 
     game = Game(name=name, category=category, description=description)
     db.session.add(game)
     db.session.commit()
 
-    # Upload cover game ke Cloudinary kalau ada
     file = request.files.get("image")
     if file and file.filename:
         try:
             game.image_url = upload_game_image(file, game.id)
             db.session.commit()
         except ValueError as e:
-            return jsonify({"success": True, "game": game.to_dict(), "warning": str(e)}), 201
+            flash(str(e), "warning")
 
-    return jsonify({"success": True, "game": game.to_dict()}), 201
+    flash(f'Game "{game.name}" berhasil ditambahkan.', "success")
+    return redirect(url_for("admin.manage_game"))
 
 
 @admin_bp.route("/games/<game_id>", methods=["GET"])
@@ -294,18 +320,18 @@ def get_game(game_id):
     return jsonify({"success": True, "game": game.to_dict()})
 
 
-@admin_bp.route("/games/<game_id>", methods=["PUT"])
+@admin_bp.route("/games/<game_id>/edit", methods=["POST"])
 @admin_required
 def update_game(game_id):
-    """Use case: Manage Game -> edit game."""
     game = Game.query.get_or_404(game_id)
 
     name = request.form.get("name", "").strip()
     if not name:
-        return jsonify({"success": False, "message": "Nama game wajib diisi."}), 400
+        flash("Nama game wajib diisi.", "danger")
+        return redirect(url_for("admin.manage_game"))
 
     game.name = name
-    game.category = request.form.get("category", "").strip() or None
+    game.category = request.form.get("category") or None
     game.description = request.form.get("description", "").strip() or None
 
     file = request.files.get("image")
@@ -313,21 +339,22 @@ def update_game(game_id):
         try:
             game.image_url = upload_game_image(file, game.id)
         except ValueError as e:
-            db.session.commit()
-            return jsonify({"success": True, "game": game.to_dict(), "warning": str(e)})
+            flash(str(e), "warning")
 
     db.session.commit()
-    return jsonify({"success": True, "game": game.to_dict()})
+    flash(f'Game "{game.name}" berhasil diperbarui.', "success")
+    return redirect(url_for("admin.manage_game"))
 
 
-@admin_bp.route("/games/<game_id>", methods=["DELETE"])
+@admin_bp.route("/games/<game_id>/delete", methods=["POST"])
 @admin_required
 def delete_game(game_id):
-    """Use case: Manage Game -> hapus game. Otomatis lepas dari semua room (pivot)."""
     game = Game.query.get_or_404(game_id)
+    name = game.name
     db.session.delete(game)
     db.session.commit()
-    return jsonify({"success": True})
+    flash(f'Game "{name}" berhasil dihapus.', "success")
+    return redirect(url_for("admin.manage_game"))
 
 
 @admin_bp.route("/rooms/<room_id>/games", methods=["GET"])
@@ -365,7 +392,8 @@ def set_room_games(room_id):
     room.games = games
     db.session.commit()
 
-    return jsonify({"success": True, "room": room.to_dict_with_games()})
+    flash(f'Daftar game untuk room "{room.room_code}" berhasil disimpan.', "success")
+    return redirect(url_for("admin.manage_room"))
 
 
 def _query_paid_payments(start_date_str, end_date_str):
