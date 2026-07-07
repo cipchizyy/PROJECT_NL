@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from app.extensions import db
+from app.models.associations import room_games
 
 
 def generate_uuid():
@@ -35,7 +36,9 @@ class Room(db.Model):
     image_url = db.Column(db.String(500), nullable=True)                 # URL hasil upload Cloudinary
 
     # --- Fasilitas singkat, ditampilkan sebagai bullet list di card ---
-    game_count = db.Column(db.Integer, default=0, nullable=False)        # mis: 13 (Games)
+    # Catatan: game_count TIDAK disimpan sebagai kolom lagi, tapi dihitung
+    # otomatis dari relasi `games` (lihat property di bawah), supaya tidak ada
+    # dua sumber data yang bisa nggak sinkron saat admin assign/un-assign game.
     room_type = db.Column(
         db.Enum("smoking", "non_smoking", name="room_smoking_type"),
         default="non_smoking",
@@ -58,6 +61,11 @@ class Room(db.Model):
     # Relasi
     reservations = db.relationship("Reservation", back_populates="room", lazy="dynamic")
 
+    # Games yang tersedia di room ini (many-to-many lewat tabel pivot room_games).
+    # Terkait use case: Manage Game (Admin) -> Assign Game to Room, dan
+    # dari POV Customer muncul di halaman detail room.
+    games = db.relationship("Game", secondary=room_games, back_populates="rooms")
+
     # --- Helper tampilan ---
     @property
     def environment_label(self) -> str:
@@ -70,6 +78,15 @@ class Room(db.Model):
     @property
     def room_type_label(self) -> str:
         return "Smoking Room" if self.room_type == "smoking" else "Non-Smoking Room"
+
+    @property
+    def game_count(self) -> int:
+        """
+        Jumlah game yang terpasang di room ini, dihitung langsung dari relasi
+        `games` (bukan kolom manual) supaya selalu akurat begitu admin
+        assign/un-assign game lewat fitur Manage Game.
+        """
+        return len(self.games)
 
     def get_active_reservation(self, now: datetime = None):
         """
@@ -129,6 +146,16 @@ class Room(db.Model):
             "status": self.status,
             "live_status": live_status,
         }
+
+    def to_dict_with_games(self):
+        """
+        Sama seperti to_dict(), ditambah daftar detail game (bukan cuma jumlahnya)
+        yang terpasang di room ini. Dipisah supaya to_dict() tetap ringan dan
+        tidak melakukan query tambahan kalau tidak dibutuhkan.
+        """
+        data = self.to_dict()
+        data["games"] = [g.to_dict() for g in self.games]
+        return data
 
     def __repr__(self):
         return f"<Room {self.room_code} {self.name}>"

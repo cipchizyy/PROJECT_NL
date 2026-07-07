@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Report - Next Level</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='../static/css/admin/sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='../static/css/admin/sales_report.css') }}">
+</head>
+<body style="margin:0; background:#0d0d12; font-family:'Segoe UI', Arial, sans-serif;">
+<div class="admin-layout">
+    {% set active_menu = 'reports' %}
+    {% include "admin/sidebar.html" %}
+
+    <main class="admin-main">
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-wrap">
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">
+                <span>{{ message }}</span>
+                <button class="flash-close" onclick="this.parentElement.remove()">×</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="sr-page">
+
+            <div class="sr-header">
+                <div>
+                    <h1 class="sr-title">Sales Report</h1>
+                    <p class="sr-subtitle">Ringkasan pendapatan dari seluruh transaksi yang sudah dibayar.</p>
+                </div>
+
+                <a
+                    id="sr-download-btn"
+                    class="sr-btn sr-btn--primary"
+                    href="{{ url_for('admin.download_sales_report', start_date=start_date, end_date=end_date) }}"
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Download PDF
+                </a>
+            </div>
+
+            <!-- ── FILTER TANGGAL ───────────────────────────────── -->
+            <form id="sr-filter-form" class="sr-filter" method="get" action="{{ url_for('admin.create_sales_report') }}">
+                <div class="sr-filter-field">
+                    <label for="start_date">Dari tanggal</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ start_date or '' }}">
+                </div>
+                <div class="sr-filter-field">
+                    <label for="end_date">Sampai tanggal</label>
+                    <input type="date" id="end_date" name="end_date" value="{{ end_date or '' }}">
+                </div>
+                <button type="submit" class="sr-btn sr-btn--secondary">Terapkan</button>
+                <a href="{{ url_for('admin.create_sales_report') }}" class="sr-btn sr-btn--ghost">Reset</a>
+            </form>
+
+            <!-- ── SUMMARY CARDS ────────────────────────────────── -->
+            <div class="sr-cards">
+                <div class="sr-card">
+                    <span class="sr-card-label">Total Revenue</span>
+                    <span class="sr-card-value">Rp {{ "{:,.0f}".format(total_revenue) }}</span>
+                </div>
+                <div class="sr-card">
+                    <span class="sr-card-label">Total Transaksi</span>
+                    <span class="sr-card-value">{{ total_transactions }}</span>
+                </div>
+                <div class="sr-card">
+                    <span class="sr-card-label">Rata-rata / Transaksi</span>
+                    <span class="sr-card-value">Rp {{ "{:,.0f}".format(avg_transaction) }}</span>
+                </div>
+            </div>
+
+            <!-- ── CHART REVENUE PER HARI ───────────────────────── -->
+            <div class="sr-chart-box">
+                <h2 class="sr-section-title">Revenue per Hari</h2>
+                {% if chart_labels %}
+                    <canvas id="sr-revenue-chart" height="90"></canvas>
+                {% else %}
+                    <p class="sr-empty">Belum ada data untuk periode ini.</p>
+                {% endif %}
+            </div>
+
+            <!-- ── TABEL DETAIL TRANSAKSI ───────────────────────── -->
+            <div class="sr-table-box">
+                <div class="sr-table-head">
+                    <h2 class="sr-section-title">Detail Transaksi</h2>
+                    <input
+                        type="text"
+                        id="sr-search"
+                        class="sr-search-input"
+                        placeholder="Cari reservasi ID atau metode..."
+                    >
+                </div>
+
+                {% if payments %}
+                <table class="sr-table" id="sr-table">
+                    <thead>
+                        <tr>
+                            <th>Tanggal Bayar</th>
+                            <th>Reservasi ID</th>
+                            <th>Metode</th>
+                            <th class="sr-col-right">Jumlah</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in payments %}
+                        <tr>
+                            <td>{{ p.paid_at.strftime("%Y-%m-%d %H:%M") if p.paid_at else "-" }}</td>
+                            <td>{{ p.reservation_id }}</td>
+                            <td><span class="sr-badge">{{ p.method or "-" }}</span></td>
+                            <td class="sr-col-right">Rp {{ "{:,.0f}".format(p.amount|float) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    <p class="sr-empty">Tidak ada transaksi pada rentang tanggal ini.</p>
+                {% endif %}
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<!-- Data untuk chart, dibaca oleh sales_report.js -->
+<script id="sr-chart-data" type="application/json">
+  {
+    "labels": {{ chart_labels|tojson }},
+    "values": {{ chart_values|tojson }}
+  }
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='../static/js/admin/sales_report.js') }}"></script>
+</body>
+</html>
