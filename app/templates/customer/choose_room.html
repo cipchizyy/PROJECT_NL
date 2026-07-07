@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/choose_room.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/room_details.css') }}">
 </head>
 <body>
 
@@ -133,14 +134,22 @@
                   {% endif %}
                 </ul>
 
-                <button class="room-card__btn room-card__btn--{{ 'ready' if is_avail else 'busy' }}"
-                        {% if not is_avail %}disabled aria-disabled="true"{% endif %}
-                        data-room-id="{{ room.id }}"
-                        data-room-code="{{ room.room_code }}"
-                        data-room-type="{{ room.environment_label }}"
-                        data-price="{{ room.price_per_hour | float }}">
-                  {{ 'Ready' if is_avail else 'Busy' }}
-                </button>
+                <div class="room-card__actions">
+                  <button type="button"
+                          class="room-card__btn room-card__btn--details"
+                          data-room-id="{{ room.id }}"
+                          aria-haspopup="dialog">
+                    Details
+                  </button>
+                  <button class="room-card__btn room-card__btn--{{ 'ready' if is_avail else 'busy' }}"
+                          {% if not is_avail %}disabled aria-disabled="true"{% endif %}
+                          data-room-id="{{ room.id }}"
+                          data-room-code="{{ room.room_code }}"
+                          data-room-type="{{ room.environment_label }}"
+                          data-price="{{ room.price_per_hour | float }}">
+                    {{ 'Ready' if is_avail else 'Busy' }}
+                  </button>
+                </div>
               </div>
             </article>
             {% endfor %}
@@ -215,11 +224,104 @@
     </div>
   </div>
 
+  <!-- MODAL: ROOM DETAILS (Games) -->
+  <div class="game-modal-overlay" id="game-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="game-modal-title">
+    <div class="game-modal" tabindex="-1">
+      <div class="game-modal__header">
+        <div>
+          <p class="game-modal__title" id="game-modal-title">R-01</p>
+          <p class="game-modal__subtitle" id="game-modal-subtitle">Regular · 10.000/hr</p>
+        </div>
+        <button class="game-modal__close" id="game-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="game-modal__body" id="game-modal-body">
+        <!-- diisi via JS dari ROOMS_DATA -->
+      </div>
+    </div>
+  </div>
+
   {% if has_rooms %}
   <script>
     const ROOMS_DATA = {{ rooms_json | safe }};
   </script>
   <script src="{{ url_for('static', filename='js/choose_room.js') }}"></script>
+  <script>
+    // ── MODAL DETAILS (Games per Room) ─────────────────────────
+    (function () {
+      const overlay  = document.getElementById('game-modal-overlay');
+      const title    = document.getElementById('game-modal-title');
+      const subtitle = document.getElementById('game-modal-subtitle');
+      const body     = document.getElementById('game-modal-body');
+      const closeBtn = document.getElementById('game-modal-close');
+
+      function escapeHtml(str) {
+        return String(str ?? '').replace(/[&<>"']/g, (c) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+      }
+
+      function renderGames(room) {
+        const games = room.games || [];
+
+        if (games.length === 0) {
+          body.innerHTML = `
+            <div class="game-modal__empty">
+              <div class="game-modal__empty-icon">🎮</div>
+              <p>Belum ada game yang dipasang di room ini.</p>
+            </div>`;
+          return;
+        }
+
+        const cards = games.map((g) => {
+          const img = g.image_url
+            ? `<img class="game-item__img" src="${escapeHtml(g.image_url)}" alt="${escapeHtml(g.name)}">`
+            : `<div class="game-item__img-fallback">🕹️</div>`;
+          return `
+            <div class="game-item">
+              ${img}
+              <div class="game-item__body">
+                <p class="game-item__name">${escapeHtml(g.name)}</p>
+                ${g.category ? `<p class="game-item__category">${escapeHtml(g.category)}</p>` : ''}
+              </div>
+            </div>`;
+        }).join('');
+
+        body.innerHTML = `
+          <p class="game-modal__count">${games.length} Game Tersedia</p>
+          <div class="game-grid">${cards}</div>`;
+      }
+
+      function openModal(roomId) {
+        const room = ROOMS_DATA.find((r) => r.id === roomId);
+        if (!room) return;
+
+        title.textContent = room.room_code;
+        subtitle.textContent = `${room.environment_label} · ${Number(room.price_per_hour).toLocaleString('id-ID')}/hr`;
+        renderGames(room);
+
+        overlay.classList.add('is-open');
+      }
+
+      function closeModal() {
+        overlay.classList.remove('is-open');
+      }
+
+      document.querySelectorAll('.room-card__btn--details').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation(); // jangan sampai memicu klik card (buka modal booking)
+          openModal(btn.dataset.roomId);
+        });
+      });
+
+      closeBtn.addEventListener('click', closeModal);
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeModal();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+      });
+    })();
+  </script>
   {% endif %}
 
 </body>

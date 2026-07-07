@@ -24,17 +24,16 @@ class User(db.Model, UserMixin):
     role = db.Column(db.Enum("customer", "admin", name="user_role"), default="customer", nullable=False)
 
     is_active = db.Column(db.Boolean, default=True, nullable=False)
-    is_email_verified = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relasi
     reservations = db.relationship(
-        "Reservation",
-        back_populates="customer",
-        foreign_keys="Reservation.customer_id",
-        lazy="dynamic",
-    )
+    "Reservation",
+    back_populates="customer",
+    foreign_keys="Reservation.customer_id",
+    lazy="dynamic"
+)
 
     # --- Password helpers (passcode = password biasa, di-hash via bcrypt) ---
     def set_password(self, raw_password: str):
@@ -55,7 +54,6 @@ class User(db.Model, UserMixin):
             "phone_number": self.phone_number,
             "role": self.role,
             "is_active": self.is_active,
-            "is_email_verified": self.is_email_verified,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

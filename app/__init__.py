@@ -4,7 +4,6 @@ from flask import Flask
 from config import config_by_name
 from app.extensions import db, migrate, login_manager, bcrypt, cors
 from app.utils.cloudinary_client import init_cloudinary
-# from app.services.email_service import init_resend  
 
 
 def create_app(config_name=None):
@@ -26,13 +25,18 @@ def create_app(config_name=None):
 
     # --- Init layanan pihak ketiga (baca config yang sumbernya os.getenv) ---
     init_cloudinary(app)
-    # init_resend(app)
 
     # --- Import model supaya dikenali Flask-Migrate ---
-    from app import models  # noqa: F401
+    # Semua model diimport di sini (bukan cuma User) supaya SQLAlchemy sempat
+    # membangun semua mapper & relasi (mis. Room.games <-> Game.rooms) sebelum
+    # dipakai di request pertama, dan supaya Flask-Migrate mendeteksi semuanya.
+    from app.models.user import User
+    from app.models.room import Room
+    from app.models.reservation import Reservation
+    from app.models.payment import Payment
+    from app.models.game import Game
 
     # --- User loader untuk Flask-Login ---
-    from app.models.user import User
 
     @login_manager.user_loader
     def load_user(user_id):

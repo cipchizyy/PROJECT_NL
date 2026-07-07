@@ -1,4 +1,3 @@
-import io
 from functools import wraps
 from datetime import date, datetime, timedelta
 
@@ -6,8 +5,9 @@ from sqlalchemy import func
 from flask import (
     Blueprint, render_template, request, jsonify, abort,
     flash, redirect, url_for, send_file,
-    )
+)
 from flask_login import login_required, current_user
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import cm
@@ -15,9 +15,8 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 
 from app.extensions import db
-from app.models import Room, Reservation, User, Payment, game
-from app.models.game import Game
-from app.services.upload_service import upload_room_image, upload_game_image
+from app.models import Room, Reservation, User, Payment, Game               # <-- FIX: tambah Game
+from app.services.upload_service import upload_room_image, upload_game_image  # <-- FIX: tambah upload_game_image
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -33,54 +32,55 @@ def admin_required(f):
     return decorated
 
 
+# ── Dashboard ────────────────────────────────────────────────
 @admin_bp.route("/dashboard")
 @admin_required
 def dashboard():
-    # Stat cards
-    total_rooms     = Room.query.count()
-    available_rooms = Room.query.filter_by(status="available").count()
-    active_bookings = Reservation.query.filter_by(status="confirmed").count()
+    rooms = Room.query.order_by(Room.room_code).all()
+    total_rooms = len(rooms)
 
-    # Daily revenue hari ini
+    # current_status() dihitung real-time per room (available/busy/maintenance/inactive)
+    available_rooms = sum(1 for r in rooms if r.current_status()["state"] == "available")
+    active_bookings = sum(1 for r in rooms if r.current_status()["state"] == "busy")
+
     today = date.today()
-    daily_revenue = db.session.query(func.sum(Reservation.total_price)).filter(
-        func.date(Reservation.created_at) == today,
-        Reservation.status.in_(["confirmed", "completed"])
-    ).scalar()
-    daily_revenue = float(daily_revenue or 0)
-
-    # Room grid — semua room kecuali inactive, limit 6 untuk dashboard
-    rooms = Room.query.filter(
-        Room.status != 'inactive'
-    ).order_by(Room.room_code).limit(6).all()
+    todays_payments = Payment.query.filter(
+        Payment.status == "paid",
+        func.date(Payment.paid_at) == today,
+    ).all()
+    daily_revenue = sum(float(p.amount) for p in todays_payments)
 
     return render_template(
         "admin/dashboard.html",
+        user=current_user,
+        rooms=rooms,
         total_rooms=total_rooms,
         available_rooms=available_rooms,
         active_bookings=active_bookings,
         daily_revenue=daily_revenue,
-        rooms=rooms,
     )
 
 
+# ── Manage Room (GET) ────────────────────────────────────────
 @admin_bp.route("/rooms", methods=["GET"])
 @admin_required
 def manage_room():
-    rooms = Room.query.order_by(Room.created_at.desc()).all()
-    
-    all_games = Game.query.order_by(Game.name).all()        # <-- pastikan baris ini ADA
-    all_games_json = [g.to_dict() for g in all_games]         # <-- pastikan baris ini ADA
-    
-    return render_template(
-        "admin/rooms.html",
-        user=current_user,
-        rooms=rooms,
-        all_games_json=all_games_json,                        # <-- pastikan parameter ini ADA
-    )
+    """Use case: Manage Room."""
+    rooms = Room.query.order_by(Room.room_code).all()
+
+    # FIX: kirim daftar semua game supaya modal "🎮 Games" di rooms.html bisa
+    # render checklist assign game per room (dibaca lewat const ALL_GAMES di template)
+    all_games = Game.query.order_by(Game.name).all()
+    all_games_json = [g.to_dict() for g in all_games]
+
+    return render_template("admin/rooms.html", rooms=rooms, all_games_json=all_games_json)
 
 
-@admin_bp.route("/rooms", methods=["POST"])
+# ── Add Room (POST dari modal New Room) ──────────────────────
+# FIX: nama fungsi diganti dari add_room -> create_room, karena rooms.html
+# manggil {{ url_for('admin.create_room') }} -- kalau nama fungsi beda,
+# Flask gak nemu endpoint-nya dan langsung BuildError pas render.
+@admin_bp.route("/rooms/add", methods=["POST"])
 @admin_required
 def create_room():
     room = Room(
@@ -94,35 +94,44 @@ def create_room():
         description=request.form.get("description") or None,
         status=request.form.get("status", "available"),
     )
+    # FIX: baris "game_count=int(request.form.get('game_count', 0))" DIHAPUS.
+    # game_count sekarang computed property di model Room (otomatis dari
+    # room.games), bukan lagi kolom manual -- kalau baris itu masih ada,
+    # ini bakal error "AttributeError: can't set attribute".
     db.session.add(room)
     db.session.commit()
 
-    # Upload foto room ke Cloudinary kalau ada
+    # Upload gambar ke Cloudinary kalau ada
     file = request.files.get("image")
     if file and file.filename:
         image_url = upload_room_image(file, room.id)
         room.image_url = image_url
         db.session.commit()
 
-    flash(f"Room '{room.room_code}' berhasil ditambahkan.", "success")
+    flash("Room berhasil ditambahkan!", "success")
     return redirect(url_for("admin.manage_room"))
 
 
-@admin_bp.route("/rooms/<string:room_id>/edit", methods=["POST"])
+# ── Edit Room (POST dari modal Edit) ────────────────────────
+@admin_bp.route("/rooms/<room_id>/edit", methods=["POST"])
 @admin_required
 def edit_room(room_id):
-    """Use case: Update Room (bagian dari Manage Room)."""
     room = Room.query.get_or_404(room_id)
 
-    room.room_code = request.form.get("room_code", room.room_code)
-    room.name = request.form.get("name", room.name)
-    room.console_type = request.form.get("console_type", room.console_type)
-    room.environment = request.form.get("environment", room.environment)
+    # FIX: field lama "room.room_number" dan "room.tier" DIHAPUS karena
+    # kolom itu TIDAK ADA di model Room kamu (yang ada: room_code, name,
+    # environment, console_type, dst) -- baris lama itu cuma nempel
+    # attribute Python biasa yang gak ke-save ke database, alias bug diam-diam.
+    room.room_code      = request.form.get("room_code", room.room_code)
+    room.name           = request.form.get("name", room.name)
+    room.environment    = request.form.get("environment", room.environment)
+    room.console_type   = request.form.get("console_type", room.console_type)
     room.price_per_hour = request.form.get("price_per_hour", room.price_per_hour)
-    room.room_type = request.form.get("room_type", room.room_type)
-    room.seating_type = request.form.get("seating_type") or room.seating_type
-    room.description = request.form.get("description") or room.description
-    room.status = request.form.get("status", room.status)
+    room.room_type      = request.form.get("room_type", room.room_type)
+    room.seating_type   = request.form.get("seating_type") or room.seating_type
+    room.description    = request.form.get("description") or room.description
+    room.status         = request.form.get("status", room.status)
+    # FIX: baris "room.game_count = ..." DIHAPUS (computed property, read-only)
 
     file = request.files.get("image")
     if file and file.filename:
@@ -130,29 +139,27 @@ def edit_room(room_id):
         room.image_url = image_url
 
     db.session.commit()
-    flash(f"Room '{room.room_code}' berhasil diperbarui.", "success")
+    flash("Room berhasil diupdate!", "success")
     return redirect(url_for("admin.manage_room"))
 
 
-@admin_bp.route("/rooms/<string:room_id>/delete", methods=["POST"])
+# ── Delete Room ──────────────────────────────────────────────
+@admin_bp.route("/rooms/<room_id>/delete", methods=["POST"])
 @admin_required
 def delete_room(room_id):
-    """Use case: Delete Room (bagian dari Manage Room)."""
     room = Room.query.get_or_404(room_id)
-    code = room.room_code
     db.session.delete(room)
     db.session.commit()
-    flash(f"Room '{code}' berhasil dihapus.", "success")
+    flash("Room berhasil dihapus.", "success")
     return redirect(url_for("admin.manage_room"))
 
 
-@admin_bp.route("/reservations", methods=["GET"])
+# ── List Reservasi (halaman 'Reservation' di sidebar admin) ──
+@admin_bp.route("/reservations")
 @admin_required
 def reservation_list():
     """Halaman 'Reservation' di sidebar admin -- tabel lengkap semua reservasi."""
     search = request.args.get("search", "").strip()
-    start_date_str = request.args.get("start_date", "").strip()
-    end_date_str = request.args.get("end_date", "").strip()
 
     query = Reservation.query.join(Room)
 
@@ -165,96 +172,103 @@ def reservation_list():
             )
         )
 
-    # Filter rentang tanggal berdasarkan start_time reservasi.
-    # end_date diperlakukan inklusif (seluruh hari itu ikut), sama seperti
-    # pola yang sudah dipakai di _query_paid_payments.
-    if start_date_str:
-        try:
-            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-            query = query.filter(Reservation.start_time >= start_date)
-        except ValueError:
-            start_date_str = ""
-
-    if end_date_str:
-        try:
-            end_date_exclusive = datetime.strptime(end_date_str, "%Y-%m-%d") + timedelta(days=1)
-            query = query.filter(Reservation.start_time < end_date_exclusive)
-        except ValueError:
-            end_date_str = ""
-
     reservations = query.order_by(Reservation.start_time.desc()).limit(50).all()
 
     return render_template(
         "admin/reservations.html",
         reservations=reservations,
         search=search,
-        start_date=start_date_str,
-        end_date=end_date_str,
     )
 
 
 @admin_bp.route("/reservations/<reservation_id>/arrive", methods=["POST"])
 @admin_required
-def mark_arrived(reservation_id):
-    """Tandai customer sudah check-in fisik di lokasi (badge 'Arrived')."""
-    reservation = Reservation.query.get_or_404(reservation_id)
-    reservation.is_arrived = True
-    reservation.arrived_at = datetime.utcnow()
-    db.session.commit()
-
-    flash(f"Reservasi {reservation.booking_number} ditandai Arrived.", "success")
-    return redirect(url_for("admin.reservation_list"))
-
-
-@admin_bp.route("/reservations/offline/new", methods=["GET"])
-@admin_required
-def new_offline_reservation_page():
-    """
-    Halaman form Create Offline Reservation, dibuka lewat tombol (+) pink
-    di Reservation List (sesuai mockup).
-    """
-    rooms = Room.query.filter_by(status="available").order_by(Room.room_code).all()
-    return render_template("admin/offline_reservation.html", rooms=rooms)
+def reservations():
+    all_reservations = Reservation.query.order_by(Reservation.created_at.desc()).all()
+    return render_template("admin/reservations.html", reservations=all_reservations)
 
 
 @admin_bp.route("/reservations/<reservation_id>", methods=["PUT"])
 @admin_required
 def update_reservation(reservation_id):
-    """Use case: Update Reservation (<<extend>> Manage Room)."""
     reservation = Reservation.query.get_or_404(reservation_id)
-
     reservation.status = request.form.get("status", reservation.status)
     db.session.commit()
-
     return jsonify({"success": True, "reservation": reservation.to_dict()})
 
 
 @admin_bp.route("/reservations/<reservation_id>", methods=["DELETE"])
 @admin_required
 def delete_reservation(reservation_id):
-    """Use case: Delete Reservation (<<extend>> Manage Room)."""
     reservation = Reservation.query.get_or_404(reservation_id)
     db.session.delete(reservation)
     db.session.commit()
-
     return jsonify({"success": True})
+
+
+# =====================================================================
+# GANTI route create_offline_reservation() yang lama dengan 3 route ini
+# (letakkan di admin.py, posisi sama seperti create_offline_reservation
+# yang lama -- setelah reservation_list / sebelum bagian Manage Game)
+# =====================================================================
+
+
+@admin_bp.route("/reservations/offline/new", methods=["GET"])
+@admin_required
+def new_offline_reservation_page():
+    """Halaman form input reservasi offline (customer walk-in)."""
+    rooms = Room.query.filter(Room.status == "available").order_by(Room.room_code).all()
+    return render_template("admin/offline_reservation.html", rooms=rooms)
 
 
 @admin_bp.route("/reservations/offline", methods=["POST"])
 @admin_required
 def create_offline_reservation():
-    """Use case: Create Offline Reservation (untuk walk-in customer)."""
-    room_id = request.form.get("room_id")
-    guest_name = request.form.get("guest_name")
-    guest_phone = request.form.get("guest_phone")
-    start_time_raw = request.form.get("start_time")
-    duration_hours = float(request.form.get("duration_hours", 1))
+    """
+    Use case: Create Offline Reservation.
+    FIX: sebelumnya jsonify(...) -- diganti flash+redirect karena form di
+    offline_reservation.html submit biasa (bukan fetch/AJAX).
+    """
+    room_id     = request.form.get("room_id")
+    guest_name  = request.form.get("guest_name", "").strip()
+    guest_phone = request.form.get("guest_phone", "").strip() or None
+    start_time_str = request.form.get("start_time")
 
+    if not room_id or not guest_name or not start_time_str:
+        flash("Room, nama customer, dan waktu mulai wajib diisi.", "danger")
+        return redirect(url_for("admin.new_offline_reservation_page"))
+
+    try:
+        duration_hours = float(request.form.get("duration_hours", 1))
+    except (TypeError, ValueError):
+        duration_hours = 1
+
+    if duration_hours <= 0 or duration_hours > 12:
+        flash("Durasi harus antara 1-12 jam.", "danger")
+        return redirect(url_for("admin.new_offline_reservation_page"))
+
+    # FIX: parse string datetime-local ("YYYY-MM-DDTHH:MM") jadi objek datetime
+    # yang benar -- sebelumnya string mentah langsung dimasukkan ke kolom
+    # DateTime, yang bisa gagal tergantung driver database.
+    try:
+        start_time = datetime.strptime(start_time_str, "%Y-%m-%dT%H:%M")
+    except ValueError:
+        flash("Format waktu mulai tidak valid.", "danger")
+        return redirect(url_for("admin.new_offline_reservation_page"))
+
+    end_time = start_time + timedelta(hours=duration_hours)
     room = Room.query.get_or_404(room_id)
 
-    # Input dari <input type="datetime-local"> formatnya "YYYY-MM-DDTHH:MM"
-    start_time = datetime.strptime(start_time_raw, "%Y-%m-%dT%H:%M")
-    end_time = start_time + timedelta(hours=duration_hours)
+    # Cegah double booking (room yang sama, slot waktu bentrok)
+    conflict = Reservation.query.filter(
+        Reservation.room_id == room.id,
+        Reservation.status.in_(["pending", "confirmed"]),
+        Reservation.start_time < end_time,
+        Reservation.end_time > start_time,
+    ).first()
+    if conflict:
+        flash(f"Room {room.room_code} sudah dibooking di jam tersebut.", "danger")
+        return redirect(url_for("admin.new_offline_reservation_page"))
 
     total_price = float(room.price_per_hour) * duration_hours
 
@@ -273,21 +287,39 @@ def create_offline_reservation():
     db.session.add(reservation)
     db.session.commit()
 
-    flash(f"Reservasi offline {reservation.booking_number} untuk {guest_name} berhasil dibuat.", "success")
+    flash(f"Reservasi offline untuk {guest_name} berhasil dibuat.", "success")
     return redirect(url_for("admin.reservation_list"))
 
+
+@admin_bp.route("/reservations/<reservation_id>/arrive", methods=["POST"])
+@admin_required
+def mark_arrived(reservation_id):
+    """Tombol 'Mark Arrived' di tabel Reservation List."""
+    reservation = Reservation.query.get_or_404(reservation_id)
+    reservation.is_arrived = True
+    reservation.arrived_at = datetime.utcnow()
+    db.session.commit()
+
+    flash(f"Reservasi #{reservation.booking_number} ditandai sudah datang.", "success")
+    return redirect(url_for("admin.reservation_list"))
+# ══════════════════════════════════════════════════════════════
+# Manage Game
+# ══════════════════════════════════════════════════════════════
 
 @admin_bp.route("/games", methods=["GET"])
 @admin_required
 def manage_game():
     """Use case: Manage Game -> input game oleh admin."""
+    # FIX: route decorator diganti dari "/report" -> "/games" (sebelumnya
+    # nyasar ke URL sales report, padahal ini halaman Manage Game)
     games = Game.query.order_by(Game.created_at.desc()).all()
-    return render_template("admin/games.html", user=current_user, active_page="games", games=games)
+    return render_template("admin/games.html", user=current_user, games=games)
 
 
 @admin_bp.route("/games", methods=["POST"])
 @admin_required
 def create_game():
+    """Use case: Manage Game -> tambah game baru."""
     name = request.form.get("name", "").strip()
     category = request.form.get("category") or None
     description = request.form.get("description", "").strip() or None
@@ -312,17 +344,12 @@ def create_game():
     return redirect(url_for("admin.manage_game"))
 
 
-@admin_bp.route("/games/<game_id>", methods=["GET"])
-@admin_required
-def get_game(game_id):
-    """Ambil detail satu game (dipakai untuk mengisi form edit)."""
-    game = Game.query.get_or_404(game_id)
-    return jsonify({"success": True, "game": game.to_dict()})
-
-
+# FIX: path & method disamakan dengan yang dipanggil games.js
+# (editGameForm.action = `/admin/games/${id}/edit`, method POST)
 @admin_bp.route("/games/<game_id>/edit", methods=["POST"])
 @admin_required
 def update_game(game_id):
+    """Use case: Manage Game -> edit game."""
     game = Game.query.get_or_404(game_id)
 
     name = request.form.get("name", "").strip()
@@ -346,9 +373,12 @@ def update_game(game_id):
     return redirect(url_for("admin.manage_game"))
 
 
+# FIX: path & method disamakan dengan games.js
+# (deleteGameForm.action = `/admin/games/${id}/delete`, method POST)
 @admin_bp.route("/games/<game_id>/delete", methods=["POST"])
 @admin_required
 def delete_game(game_id):
+    """Use case: Manage Game -> hapus game. Otomatis lepas dari semua room (pivot)."""
     game = Game.query.get_or_404(game_id)
     name = game.name
     db.session.delete(game)
@@ -357,27 +387,8 @@ def delete_game(game_id):
     return redirect(url_for("admin.manage_game"))
 
 
-@admin_bp.route("/rooms/<room_id>/games", methods=["GET"])
-@admin_required
-def get_room_games(room_id):
-    """
-    Use case: Manage Game -> Assign Game to Room.
-    Mengembalikan semua game yang ada, ditandai mana yang sudah terpasang di room ini.
-    """
-    room = Room.query.get_or_404(room_id)
-    assigned_ids = {g.id for g in room.games}
-    all_games = Game.query.order_by(Game.name).all()
-
-    return jsonify({
-        "success": True,
-        "room": room.to_dict(),
-        "games": [
-            {**g.to_dict(), "assigned": g.id in assigned_ids}
-            for g in all_games
-        ],
-    })
-
-
+# FIX: jsonify -> flash+redirect, karena form gamesForm di rooms.html
+# submit biasa (bukan fetch), bukan endpoint JSON lagi
 @admin_bp.route("/rooms/<room_id>/games", methods=["POST"])
 @admin_required
 def set_room_games(room_id):
@@ -396,58 +407,59 @@ def set_room_games(room_id):
     return redirect(url_for("admin.manage_room"))
 
 
-def _query_paid_payments(start_date_str, end_date_str):
-    """
-    Helper bersama: ambil semua Payment berstatus 'paid' dengan filter rentang
-    tanggal opsional, dipakai baik oleh halaman HTML maupun endpoint download PDF
-    supaya datanya selalu konsisten.
+# ══════════════════════════════════════════════════════════════
+# Sales Report (route yang tadinya belum pernah dibuat sama sekali,
+# makanya BuildError -- sekarang dilengkapi)
+# ══════════════════════════════════════════════════════════════
 
-    end_date diperlakukan inklusif (seluruh hari itu ikut terhitung) dengan
-    membandingkan '< end_date + 1 hari', bukan '<= end_date 00:00'.
-    """
+def _build_chart_data(payments):
+    """Kelompokkan total revenue per tanggal, untuk Chart.js di sales_report.html."""
+    daily_totals = {}
+    for p in payments:
+        if p.paid_at:
+            key = p.paid_at.strftime("%Y-%m-%d")
+            daily_totals[key] = daily_totals.get(key, 0) + float(p.amount)
+    labels = sorted(daily_totals.keys())
+    values = [daily_totals[k] for k in labels]
+    return labels, values
+
+
+def _query_paid_payments(start_date_str, end_date_str):
+    """Ambil semua Payment berstatus 'paid', dengan filter rentang tanggal opsional."""
     query = Payment.query.filter_by(status="paid")
 
     if start_date_str:
         try:
-            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-            query = query.filter(Payment.paid_at >= start_date)
+            start_dt = datetime.strptime(start_date_str, "%Y-%m-%d")
+            query = query.filter(Payment.paid_at >= start_dt)
         except ValueError:
-            start_date_str = None
+            pass
 
     if end_date_str:
         try:
-            end_date_exclusive = datetime.strptime(end_date_str, "%Y-%m-%d") + timedelta(days=1)
-            query = query.filter(Payment.paid_at < end_date_exclusive)
+            # end_date inklusif -> geser ke awal hari berikutnya
+            end_dt = datetime.strptime(end_date_str, "%Y-%m-%d") + timedelta(days=1)
+            query = query.filter(Payment.paid_at < end_dt)
         except ValueError:
-            end_date_str = None
+            pass
 
-    payments = query.order_by(Payment.paid_at.desc()).all()
-    return payments, start_date_str, end_date_str
+    return query.order_by(Payment.paid_at.desc()).all()
 
 
-@admin_bp.route("/sales-report", methods=["GET"])
+@admin_bp.route("/report", methods=["GET"])
 @admin_required
 def create_sales_report():
-    """Use case: Create Sales Report (agregat dari Payment)."""
-    start_date_str = request.args.get("start_date")
-    end_date_str   = request.args.get("end_date")
+    """Halaman Sales Report -- ringkasan + filter tanggal + tabel transaksi."""
+    start_date_str = request.args.get("start_date") or ""
+    end_date_str = request.args.get("end_date") or ""
 
-    payments, start_date_str, end_date_str = _query_paid_payments(start_date_str, end_date_str)
+    payments = _query_paid_payments(start_date_str, end_date_str)
 
-    total_revenue      = sum(float(p.amount) for p in payments)
+    total_revenue = sum(float(p.amount) for p in payments)
     total_transactions = len(payments)
-    avg_transaction     = (total_revenue / total_transactions) if total_transactions else 0.0
+    avg_transaction = (total_revenue / total_transactions) if total_transactions else 0
 
-    # Rekap revenue per hari, dipakai untuk chart di halaman report
-    revenue_by_day = {}
-    for p in payments:
-        if not p.paid_at:
-            continue
-        day_key = p.paid_at.strftime("%Y-%m-%d")
-        revenue_by_day[day_key] = revenue_by_day.get(day_key, 0) + float(p.amount)
-
-    chart_labels = sorted(revenue_by_day.keys())
-    chart_values = [revenue_by_day[d] for d in chart_labels]
+    chart_labels, chart_values = _build_chart_data(payments)
 
     return render_template(
         "admin/sales_report.html",
@@ -462,43 +474,27 @@ def create_sales_report():
     )
 
 
-@admin_bp.route("/reports", methods=["GET"], endpoint="sales_report")
-@admin_required
-def sales_report_alias():
-    """
-    Alias kompatibilitas: kalau ada template lain (selain admin/sidebar.html)
-    yang memanggil url_for('admin.sales_report'), redirect ke endpoint asli
-    'admin.create_sales_report' supaya tidak BuildError, tanpa mengubah
-    nama endpoint utama yang sudah dipakai admin/sidebar.html.
-    """
-    return redirect(url_for("admin.create_sales_report", **request.args))
-
-
-@admin_bp.route("/sales-report/download", methods=["GET"])
+@admin_bp.route("/report/download", methods=["GET"])
 @admin_required
 def download_sales_report():
-    """Generate Sales Report yang sama persis, dikirim sebagai file PDF."""
-    start_date_str = request.args.get("start_date")
-    end_date_str   = request.args.get("end_date")
+    """Export Sales Report ke PDF pakai reportlab."""
+    start_date_str = request.args.get("start_date") or ""
+    end_date_str = request.args.get("end_date") or ""
 
-    payments, start_date_str, end_date_str = _query_paid_payments(start_date_str, end_date_str)
+    payments = _query_paid_payments(start_date_str, end_date_str)
+    total_revenue = sum(float(p.amount) for p in payments)
 
-    total_revenue      = sum(float(p.amount) for p in payments)
-    total_transactions = len(payments)
-
+    import io
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=2 * cm, bottomMargin=2 * cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
     styles = getSampleStyleSheet()
-    story = []
-
-    story.append(Paragraph("Sales Report", styles["Title"]))
-    periode = f"{start_date_str or 'Semua'} s/d {end_date_str or 'Semua'}"
-    story.append(Paragraph(f"Periode: {periode}", styles["Normal"]))
-    story.append(Spacer(1, 12))
-
-    story.append(Paragraph(f"Total Transaksi: {total_transactions}", styles["Normal"]))
-    story.append(Paragraph(f"Total Revenue: Rp {total_revenue:,.0f}", styles["Normal"]))
-    story.append(Spacer(1, 16))
+    elements = [
+        Paragraph("Sales Report - Next Level Rent", styles["Title"]),
+        Spacer(1, 0.5 * cm),
+        Paragraph(f"Periode: {start_date_str or 'Semua'} s/d {end_date_str or 'Semua'}", styles["Normal"]),
+        Paragraph(f"Total Revenue: Rp {total_revenue:,.0f}", styles["Normal"]),
+        Spacer(1, 0.5 * cm),
+    ]
 
     table_data = [["Tanggal Bayar", "Reservasi ID", "Metode", "Jumlah"]]
     for p in payments:
@@ -511,22 +507,20 @@ def download_sales_report():
 
     table = Table(table_data, colWidths=[4 * cm, 5 * cm, 3 * cm, 4 * cm])
     table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#333333")),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#7c3aed")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f2f2f2")]),
         ("ALIGN", (3, 1), (3, -1), "RIGHT"),
     ]))
-    story.append(table)
+    elements.append(table)
 
-    doc.build(story)
+    doc.build(elements)
     buffer.seek(0)
 
-    filename = f"sales_report_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.pdf"
     return send_file(
         buffer,
         mimetype="application/pdf",
         as_attachment=True,
-        download_name=filename,
+        download_name="sales_report.pdf",
     )

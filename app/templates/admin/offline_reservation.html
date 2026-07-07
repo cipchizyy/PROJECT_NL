@@ -13,52 +13,52 @@
         {% include "admin/sidebar.html" %}
 
         <main class="admin-main">
-            <a href="{{ url_for('admin.reservation_list') }}" style="color:#8a8a9a; font-size:13px; text-decoration:none; display:inline-block; margin-bottom:16px;">&larr; Kembali ke Reservation</a>
+            <a href="{{ url_for('admin.reservation_list') }}" class="back-link">&larr; Kembali ke Reservation List</a>
 
-            <h1 class="admin-page-title">Buat Reservasi Offline</h1>
-            <p style="color:#8a8a9a; font-size:13px; margin-bottom:24px;">Untuk customer walk-in yang datang langsung ke lokasi.</p>
+            <h1 class="admin-page-title">Reservasi Offline</h1>
+            <p>Input reservasi untuk customer walk-in yang datang langsung ke tempat.</p>
 
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
-                    <div class="flash-messages">
-                        {% for category, message in messages %}
-                            <div class="flash flash-{{ category }}">{{ message }}</div>
-                        {% endfor %}
-                    </div>
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                    <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
                 {% endif %}
             {% endwith %}
 
             <div class="panel-card" style="max-width:520px; padding:28px;">
                 <form action="{{ url_for('admin.create_offline_reservation') }}" method="POST">
-                    <label style="display:block; color:#b8b8c8; font-size:12px; font-weight:600; margin-bottom:6px;">Pilih Room</label>
-                    <select name="room_id" required style="width:100%; background:#1f1f29; border:1px solid #2c2c38; border-radius:8px; padding:11px 12px; color:#fff; font-size:14px; margin-bottom:16px;">
-                        <option value="" disabled selected>-- Pilih room tersedia --</option>
+
+                    <label for="room_id">Pilih Room</label>
+                    <select name="room_id" id="room_id" required>
+                        <option value="">-- Pilih room --</option>
                         {% for room in rooms %}
-                        <option value="{{ room.id }}">{{ room.room_code }} - {{ room.name }} ({{ "{:,.0f}".format(room.price_per_hour) }}/jam)</option>
+                        <option value="{{ room.id }}">
+                            {{ room.room_code }} — {{ room.name }} (Rp {{ "{:,.0f}".format(room.price_per_hour|float) }}/jam)
+                        </option>
                         {% endfor %}
                     </select>
 
-                    <label style="display:block; color:#b8b8c8; font-size:12px; font-weight:600; margin-bottom:6px;">Nama Customer</label>
-                    <input type="text" name="guest_name" placeholder="Nama walk-in customer" required
-                        style="width:100%; background:#1f1f29; border:1px solid #2c2c38; border-radius:8px; padding:11px 12px; color:#fff; font-size:14px; margin-bottom:16px;">
+                    <label for="guest_name">Nama Customer</label>
+                    <input type="text" name="guest_name" id="guest_name" placeholder="Nama customer" required>
 
-                    <label style="display:block; color:#b8b8c8; font-size:12px; font-weight:600; margin-bottom:6px;">No. HP</label>
-                    <input type="text" name="guest_phone" placeholder="08xxxxxxxxxx"
-                        style="width:100%; background:#1f1f29; border:1px solid #2c2c38; border-radius:8px; padding:11px 12px; color:#fff; font-size:14px; margin-bottom:16px;">
+                    <label for="guest_phone">No. HP</label>
+                    <input type="text" name="guest_phone" id="guest_phone" placeholder="08xxxxxxxxxx">
 
-                    <label style="display:block; color:#b8b8c8; font-size:12px; font-weight:600; margin-bottom:6px;">Tanggal &amp; Jam Mulai</label>
-                    <input type="datetime-local" name="start_time" required
-                        style="width:100%; background:#1f1f29; border:1px solid #2c2c38; border-radius:8px; padding:11px 12px; color:#fff; font-size:14px; margin-bottom:16px;">
+                    <label for="start_time">Waktu Mulai</label>
+                    <input type="datetime-local" name="start_time" id="start_time" required>
 
-                    <label style="display:block; color:#b8b8c8; font-size:12px; font-weight:600; margin-bottom:6px;">Durasi (jam)</label>
-                    <input type="number" name="duration_hours" min="1" max="12" value="1" required
-                        style="width:100%; background:#1f1f29; border:1px solid #2c2c38; border-radius:8px; padding:11px 12px; color:#fff; font-size:14px; margin-bottom:24px;">
+                    <label for="duration_hours">Durasi (jam)</label>
+                    <input type="number" name="duration_hours" id="duration_hours" min="1" max="12" value="1" required>
 
-                    <button type="submit" class="btn-primary" style="width:100%;">Buat Reservasi</button>
+                    <button type="submit" class="btn-primary">Buat Reservasi</button>
                 </form>
             </div>
         </main>
     </div>
+
     <script src="{{ url_for('static', filename='../static/js/admin/offline_reservation.js') }}"></script>
 </body>
 </html>
