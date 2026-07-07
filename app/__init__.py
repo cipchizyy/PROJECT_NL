@@ -4,7 +4,7 @@ from flask import Flask
 from config import config_by_name
 from app.extensions import db, migrate, login_manager, bcrypt, cors
 from app.utils.cloudinary_client import init_cloudinary
-# from app.services.email_service import init_resend  
+from app.services.email_service import init_resend
 
 
 def create_app(config_name=None):
@@ -26,11 +26,10 @@ def create_app(config_name=None):
 
     # --- Init layanan pihak ketiga (baca config yang sumbernya os.getenv) ---
     init_cloudinary(app)
-    # init_resend(app)
+    init_resend(app)
 
     # --- Import model supaya dikenali Flask-Migrate ---
-    from app import models  # noqa: F401
-
+    from app.models.user import User
     # --- User loader untuk Flask-Login ---
     from app.models.user import User
 

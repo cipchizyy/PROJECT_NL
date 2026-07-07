@@ -1,12 +1,9 @@
 import os
-import certifi
 from dotenv import load_dotenv
-
-
 
 # Load .env dari root project
 basedir = os.path.abspath(os.path.dirname(__file__))
-load_dotenv()
+load_dotenv(os.path.join(basedir, ".env"))
 
 
 class Config:
@@ -21,21 +18,20 @@ class Config:
     TIDB_USER = os.getenv("TIDB_USER")
     TIDB_PASSWORD = os.getenv("TIDB_PASSWORD")
     TIDB_DATABASE = os.getenv("TIDB_DATABASE")
-    # Kalau TIDB_SSL_CA tidak diisi di .env, fallback ke certifi (CA bundle siap pakai,
-    # bekerja di Windows/macOS/Linux tanpa perlu cari file sertifikat sistem manual).
-    TIDB_SSL_CA = os.getenv("TIDB_SSL_CA") or certifi.where()
+    TIDB_SSL_CA = os.getenv("TIDB_SSL_CA")
 
     # SQLAlchemy connection string ke TiDB (kompatibel protokol MySQL)
     SQLALCHEMY_DATABASE_URI = (
-        f"mysql+pymysql://{TIDB_USER}:{TIDB_PASSWORD}@{TIDB_HOST}:{TIDB_PORT}/{TIDB_DATABASE}"
-    )
+    f"mysql+pymysql://{TIDB_USER}:{TIDB_PASSWORD}@{TIDB_HOST}:{TIDB_PORT}/{TIDB_DATABASE}"
+    f"?ssl_verify_cert=true&ssl_verify_identity=true&ssl_ca={TIDB_SSL_CA}"
+    if TIDB_SSL_CA else
+    f"mysql+pymysql://{TIDB_USER}:{TIDB_PASSWORD}@{TIDB_HOST}:{TIDB_PORT}/{TIDB_DATABASE}"
+    f"?ssl_verify_cert=false"
+)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_recycle": 280,   # TiDB Cloud suka memutus idle connection, refresh sebelum itu
         "pool_pre_ping": True,
-        # TiDB Cloud Serverless mewajibkan koneksi SSL. Diteruskan lewat connect_args
-        # (bukan query string di URI) karena lebih reliable dibaca oleh PyMySQL.
-        "connect_args": {"ssl": {"ca": TIDB_SSL_CA}} if TIDB_SSL_CA else {},
     }
 
     # --- Resend (Email) ---
