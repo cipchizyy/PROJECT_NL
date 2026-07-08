@@ -181,7 +181,17 @@ def reservation_list():
     )
 
 
-@admin_bp.route("/reservations/<reservation_id>/arrive", methods=["POST"])
+# FIX: route ini SEBELUMNYA "/reservations/<reservation_id>/arrive" (POST) --
+# path itu BENTROK dengan route mark_arrived() di bawah (path identik, endpoint
+# beda). Werkzeug mencocokkan ke rule yang didaftarkan lebih dulu (fungsi ini),
+# lalu Flask coba panggil reservations(reservation_id=...) padahal fungsi ini
+# tidak punya parameter tsb -> TypeError: reservations() got an unexpected
+# keyword argument 'reservation_id'.
+# Diganti ke path unik "/reservations/all" (GET) supaya tidak bentrok lagi.
+# Kalau tidak ada tempat lain yang memanggil endpoint 'admin.reservations',
+# fungsi ini sebenarnya duplikat dari reservation_list() di atas dan aman
+# untuk dihapus sepenuhnya.
+@admin_bp.route("/reservations/all", methods=["GET"])
 @admin_required
 def reservations():
     all_reservations = Reservation.query.order_by(Reservation.created_at.desc()).all()
