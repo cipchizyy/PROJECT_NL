@@ -9,6 +9,7 @@
 <body>
     <div class="auth-wrapper">
         <div class="auth-card">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Next Level Logo" class="brand-logo">
             <h1 class="brand">NEXT LEVEL</h1>
             <p class="tagline">PREMIUM PLAY STATION</p>
 
@@ -34,7 +35,7 @@
 
                 <label class="label-row">
                     <span>Passcode</span>
-                    <a href="#" class="forgot-link">Forgot?</a>
+                    <a href="{{ url_for('auth.forgot_password_page') }}" class="forgot-link">Forgot?</a>
                 </label>
                 <input type="password" name="passcode" placeholder="••••••" required minlength="6">
 
@@ -59,10 +60,8 @@
             </form>
 
             <p class="contact-admin">
-                Need technical support? Contact Admin
-                {% if config.ADMIN_CONTACT_EMAIL %}
-                    <a href="mailto:{{ config.ADMIN_CONTACT_EMAIL }}">{{ config.ADMIN_CONTACT_EMAIL }}</a>
-                {% endif %}
+                Need technical support?
+                <a href="https://wa.me/{{ config.ADMIN_CONTACT_WA }}" target="_blank" rel="noopener">Contact Admin</a>
             </p>
         </div>
     </div>

@@ -1,35 +1,30 @@
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import resend
+from flask import render_template
 
 
 def send_email(to_email, subject, html_body):
     """
-    Fungsi utama untuk mengirim email langsung lewat Gmail SMTP.
+    Fungsi utama untuk mengirim email lewat Resend API (HTTPS/443).
+    Dipakai daripada SMTP Gmail (587) karena banyak jaringan
+    (kampus/kantor/ISP tertentu) memblokir port SMTP keluar,
+    sedangkan HTTPS hampir selalu terbuka.
     """
-    smtp_server = "smtp.gmail.com"
-    smtp_port = 587
+    resend_api_key = os.getenv("RESEND_API_KEY")
+    resend_from_email = os.getenv("RESEND_FROM_EMAIL")
+    resend_from_name = os.getenv("RESEND_FROM_NAME", "Next Level Rent")
 
-    mail_username = os.getenv("MAIL_USERNAME")
-    mail_password = os.getenv("MAIL_PASSWORD")
-    mail_from = os.getenv("MAIL_FROM")
+    if not resend_api_key or not resend_from_email:
+        raise Exception("Konfigurasi RESEND_API_KEY / RESEND_FROM_EMAIL belum lengkap di .env")
 
-    if not mail_username or not mail_password or not mail_from:
-        raise Exception("Konfigurasi MAIL_USERNAME / MAIL_PASSWORD / MAIL_FROM belum lengkap di .env")
+    resend.api_key = resend_api_key
 
-    message = MIMEMultipart("alternative")
-    message["From"] = mail_from
-    message["To"] = to_email
-    message["Subject"] = subject
-
-    message.attach(MIMEText(html_body, "html"))
-
-    server = smtplib.SMTP(smtp_server, smtp_port)
-    server.starttls()
-    server.login(mail_username, mail_password)
-    server.sendmail(mail_from, to_email, message.as_string())
-    server.quit()
+    resend.Emails.send({
+        "from": f"{resend_from_name} <{resend_from_email}>",
+        "to": [to_email],
+        "subject": subject,
+        "html": html_body,
+    })
 
 
 def send_otp_email(to_email, name, otp_code):
@@ -75,5 +70,22 @@ def send_welcome_email(to_email, name):
         </body>
     </html>
     """
+
+    send_email(to_email, subject, html_body)
+
+
+def send_password_reset_email(to_email, name, reset_link):
+    """
+    Kirim email berisi link reset passcode.
+    Dipanggil dari auth.py (route forgot-password).
+    Pakai template Jinja app/templates/emails/password_reset.html
+    """
+    subject = "Reset Passcode Next Level"
+
+    html_body = render_template(
+        "emails/password_reset.html",
+        name=name,
+        reset_link=reset_link,
+    )
 
     send_email(to_email, subject, html_body)

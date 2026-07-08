@@ -46,7 +46,8 @@ class Config:
 
     # --- App Settings ---
     APP_BASE_URL = os.getenv("APP_BASE_URL", "http://127.0.0.1:5000")
-    ADMIN_CONTACT_EMAIL = os.getenv("ADMIN_CONTACT_EMAIL")
+    ADMIN_CONTACT_EMAIL = os.getenv("ADMIN_CONTACT_EMAIL", "admin@example.com")
+    ADMIN_CONTACT_WA = os.getenv("ADMIN_CONTACT_WA", "6281234567890")
 
 
 class DevelopmentConfig(Config):

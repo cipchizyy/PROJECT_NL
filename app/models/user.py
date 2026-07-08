@@ -1,6 +1,8 @@
 import uuid
 from datetime import datetime
+from flask import current_app
 from flask_login import UserMixin
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from app.extensions import db, bcrypt
 
 
@@ -29,11 +31,11 @@ class User(db.Model, UserMixin):
 
     # Relasi
     reservations = db.relationship(
-    "Reservation",
-    back_populates="customer",
-    foreign_keys="Reservation.customer_id",
-    lazy="dynamic"
-)
+        "Reservation",
+        back_populates="customer",
+        foreign_keys="Reservation.customer_id",
+        lazy="dynamic"
+    )
 
     # --- Password helpers (passcode = password biasa, di-hash via bcrypt) ---
     def set_password(self, raw_password: str):
@@ -45,6 +47,30 @@ class User(db.Model, UserMixin):
     @property
     def is_admin(self) -> bool:
         return self.role == "admin"
+
+    # --- Reset password token (stateless, tidak butuh kolom/tabel baru) ---
+    # Token ditandatangani pakai SECRET_KEY app, berisi email, dan punya masa
+    # berlaku (default 1 jam). Aman karena tidak bisa dipalsukan tanpa SECRET_KEY,
+    # dan otomatis "expired" tanpa perlu disimpan/dihapus dari DB.
+    RESET_TOKEN_SALT = "password-reset-salt"
+
+    def generate_reset_token(self) -> str:
+        serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+        return serializer.dumps(self.email, salt=self.RESET_TOKEN_SALT)
+
+    @staticmethod
+    def verify_reset_token(token: str, max_age: int = 3600):
+        """
+        Verifikasi token reset password.
+        max_age dalam detik (default 3600 = 1 jam).
+        Return: User object kalau valid, None kalau token invalid/expired.
+        """
+        serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+        try:
+            email = serializer.loads(token, salt=User.RESET_TOKEN_SALT, max_age=max_age)
+        except (BadSignature, SignatureExpired):
+            return None
+        return User.query.filter_by(email=email).first()
 
     def to_dict(self):
         return {

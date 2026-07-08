@@ -4,6 +4,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app.extensions import db
 from app.models.user import User
 from app.services.email_service import send_welcome_email
+from email_helper import kirim_reset_password_email
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -76,7 +77,11 @@ def login():
 
     user = User.query.filter_by(email=email).first()
 
-    if not user or not user.check_password(passcode):
+    if not user:
+        flash("Email belum terdaftar.", "danger")
+        return redirect(url_for("auth.login_page"))
+
+    if not user.check_password(passcode):
         flash("Email atau passcode salah.", "danger")
         return redirect(url_for("auth.login_page"))
 
@@ -97,4 +102,67 @@ def login():
 def logout():
     logout_user()
     flash("Anda telah logout.", "info")
+    return redirect(url_for("auth.login_page"))
+
+
+# ── Forgot Password ──────────────────────────────────────────
+@auth_bp.route("/forgot-password", methods=["GET"])
+def forgot_password_page():
+    if current_user.is_authenticated:
+        return redirect(url_for("admin.dashboard" if current_user.is_admin else "customer.dashboard"))
+    return render_template("auth/forgot_password.html")
+
+
+@auth_bp.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    email = request.form.get("email", "").strip().lower()
+    user = User.query.filter_by(email=email).first()
+
+    if user:
+        token = user.generate_reset_token()
+        reset_link = url_for("auth.reset_password_page", token=token, _external=True)
+        try:
+            kirim_reset_password_email(email_tujuan=user.email, name=user.name, reset_link=reset_link)
+        except Exception as e:
+            print(f"[WARN] Gagal mengirim email reset passcode: {e}")
+
+    # Pesan sukses selalu sama walau email tidak ditemukan,
+    # supaya tidak bisa dipakai untuk mengecek email mana yang terdaftar.
+    flash("Jika email terdaftar, link reset passcode sudah dikirim ke email tersebut.", "info")
+    return redirect(url_for("auth.login_page"))
+
+
+# ── Reset Password ───────────────────────────────────────────
+@auth_bp.route("/reset-password/<token>", methods=["GET"])
+def reset_password_page(token):
+    user = User.verify_reset_token(token)
+    if not user:
+        flash("Link reset passcode tidak valid atau sudah kedaluwarsa.", "danger")
+        return redirect(url_for("auth.forgot_password_page"))
+
+    return render_template("auth/reset_password.html", token=token)
+
+
+@auth_bp.route("/reset-password/<token>", methods=["POST"])
+def reset_password(token):
+    user = User.verify_reset_token(token)
+    if not user:
+        flash("Link reset passcode tidak valid atau sudah kedaluwarsa.", "danger")
+        return redirect(url_for("auth.forgot_password_page"))
+
+    passcode = request.form.get("passcode", "")
+    confirm_passcode = request.form.get("confirm_passcode", "")
+
+    if len(passcode) < 6:
+        flash("Passcode minimal 6 karakter.", "danger")
+        return redirect(url_for("auth.reset_password_page", token=token))
+
+    if passcode != confirm_passcode:
+        flash("Konfirmasi passcode tidak cocok.", "danger")
+        return redirect(url_for("auth.reset_password_page", token=token))
+
+    user.set_password(passcode)
+    db.session.commit()
+
+    flash("Passcode berhasil diubah. Silakan login dengan passcode baru.", "success")
     return redirect(url_for("auth.login_page"))
