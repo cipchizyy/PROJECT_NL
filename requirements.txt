@@ -11,3 +11,4 @@ gunicorn
 Werkzeug
 cryptography
 resend
+reportlab
