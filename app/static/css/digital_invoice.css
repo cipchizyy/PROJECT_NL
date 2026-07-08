@@ -239,3 +239,15 @@ body {
 
   .btn-download { display: none !important; }
 }
+/* Fallback warna solid saat di-capture html2canvas untuk PDF
+   (gradient background-clip:text sering gagal render di canvas) */
+.pdf-capture-mode .receipt-header__title {
+  background: none !important;
+  -webkit-text-fill-color: initial !important;
+  color: var(--accent-pink) !important;
+}
+
+.pdf-capture-mode .verified-badge {
+  background: var(--accent-pink) !important;
+  color: #fff !important;
+}
