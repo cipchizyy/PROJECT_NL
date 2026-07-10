@@ -1,5 +1,5 @@
 import uuid
-import random
+import secrets
 from datetime import datetime, timedelta
 from app.extensions import db
 
@@ -9,8 +9,8 @@ def generate_uuid():
 
 
 def generate_otp() -> str:
-    """Generate kode OTP 6 digit, contoh: '042817'."""
-    return f"{random.randint(0, 999999):06d}"
+    """Membuat kode OTP acak sebanyak 6 digit."""
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 class OtpCode(db.Model):

@@ -47,10 +47,12 @@ def create_app(config_name=None):
     from app.routes.auth import auth_bp
     from app.routes.customer import customer_bp
     from app.routes.admin import admin_bp
+    from app.models.otp_code import OtpCode
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(customer_bp)
     app.register_blueprint(admin_bp)
+    
 
     return app
