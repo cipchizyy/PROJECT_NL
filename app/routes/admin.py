@@ -231,6 +231,38 @@ def new_offline_reservation_page():
     return render_template("admin/offline_reservation.html", rooms=rooms)
 
 
+# FIX: endpoint booked-slots khusus admin, supaya form Reservasi Offline bisa
+# menampilkan & mendisable jam yang sudah dibooking -- logikanya disamakan
+# persis dengan customer.get_booked_slots (room+tanggal, status pending/confirmed).
+@admin_bp.route("/rooms/<string:room_id>/booked-slots", methods=["GET"])
+@admin_required
+def get_booked_slots_admin(room_id):
+    date_str = request.args.get("date")
+    if not date_str:
+        return jsonify(slots=[])
+
+    try:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify(slots=[])
+
+    reservations = Reservation.query.filter(
+        Reservation.room_id == room_id,
+        Reservation.status.in_(["pending", "confirmed"]),
+        func.date(Reservation.start_time) == target_date,
+    ).all()
+
+    slots = [
+        {
+            "start_time": r.start_time.isoformat(),
+            "end_time":   r.end_time.isoformat(),
+        }
+        for r in reservations
+    ]
+
+    return jsonify(slots=slots)
+
+
 @admin_bp.route("/reservations/offline", methods=["POST"])
 @admin_required
 def create_offline_reservation():
