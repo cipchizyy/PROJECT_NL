@@ -161,7 +161,10 @@ def reservation_list():
     """Halaman 'Reservation' di sidebar admin -- tabel lengkap semua reservasi."""
     search = request.args.get("search", "").strip()
 
-    query = Reservation.query.join(Room)
+    # FIX: transaksi berstatus "pending" (belum dibayar / belum dikonfirmasi)
+    # disembunyikan dari Riwayat Transaksi admin -- hanya confirmed/arrived/
+    # completed/cancelled yang tampil di sini.
+    query = Reservation.query.join(Room).filter(Reservation.status != "pending")
 
     if search:
         query = query.filter(
@@ -194,7 +197,12 @@ def reservation_list():
 @admin_bp.route("/reservations/all", methods=["GET"])
 @admin_required
 def reservations():
-    all_reservations = Reservation.query.order_by(Reservation.created_at.desc()).all()
+    all_reservations = (
+        Reservation.query
+        .filter(Reservation.status != "pending")
+        .order_by(Reservation.created_at.desc())
+        .all()
+    )
     return render_template("admin/reservations.html", reservations=all_reservations)
 
 
