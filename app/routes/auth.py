@@ -4,7 +4,11 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app.extensions import db
 from app.models.user import User
 from app.services.email_service import send_welcome_email
-from email_helper import kirim_reset_password_email
+from app.services.email_service import (
+    send_otp_email,
+    send_welcome_email,
+    send_password_reset_email,
+)
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
