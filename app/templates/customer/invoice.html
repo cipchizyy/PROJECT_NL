@@ -7,6 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/digital_invoice.css') }}">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -72,12 +74,47 @@
   </main>
 
   <script>
-    // Versi awal: pakai print-to-PDF bawaan browser.
-    // Style @media print di atas otomatis menyembunyikan nav & tombol saat print.
-    document.getElementById('download-pdf-btn').addEventListener('click', () => {
-      window.print();
+  document.getElementById('download-pdf-btn').addEventListener('click', async () => {
+  const btn  = document.getElementById('download-pdf-btn');
+  const card = document.getElementById('receipt-card');
+
+  const originalText = btn.textContent;
+  btn.textContent = 'Generating PDF...';
+  btn.disabled = true;
+
+  card.classList.add('pdf-capture-mode');
+
+  try {
+    const canvas = await html2canvas(card, {
+      backgroundColor: '#121218',
+      scale: 2,
+      useCORS: true,
     });
-  </script>
+
+    const imgData  = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+
+    const pdfWidth  = canvas.width / 2;
+    const pdfHeight = canvas.height / 2;
+
+    const pdf = new jsPDF({
+      orientation: pdfHeight > pdfWidth ? 'portrait' : 'landscape',
+      unit: 'px',
+      format: [pdfWidth, pdfHeight],
+    });
+
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save('Invoice-{{ reservation.booking_number }}.pdf');
+  } catch (err) {
+    console.error('Gagal generate PDF:', err);
+    alert('Gagal membuat PDF, coba lagi.');
+  } finally {
+    card.classList.remove('pdf-capture-mode');
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+</script>
 
 </body>
 </html>

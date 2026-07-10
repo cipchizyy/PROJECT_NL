@@ -267,6 +267,30 @@ def confirm_payment():
     if reservation.customer_id != current_user.id:
         return jsonify(success=False, message="Akses ditolak."), 403
 
+    if reservation.status != "pending":
+        return jsonify(success=False, message="Reservasi ini tidak dapat dibayar (status bukan pending)."), 400
+
+    # ── Flow CASH: tidak perlu verifikasi ke _sim_transactions ──
+    if method == "cash":
+        payment = Payment.query.filter_by(reservation_id=reservation.id).first()
+        if not payment:
+            payment = Payment(reservation_id=reservation.id)
+
+        payment.method = "cash"
+        payment.status = "pending"
+        payment.amount = reservation.total_price
+
+        reservation.status = "confirmed"
+
+        db.session.add(payment)
+        db.session.commit()
+
+        return jsonify(
+            success=True,
+            redirect_url=url_for("customer.invoice", reservation_id=reservation.id)
+        )
+
+    # ── Flow CASHLESS (QRIS): logic lama, tidak berubah ──
     trx = _sim_transactions.get(reference_id)
     if not trx or trx["status"] != "settlement":
         return jsonify(success=False, message="Pembayaran belum terkonfirmasi."), 400
@@ -278,12 +302,12 @@ def confirm_payment():
     if not payment:
         payment = Payment(reservation_id=reservation.id)
 
-    payment.method             = method
+    payment.method             = "cashless"
     payment.cashless_reference = reference_id
     payment.cashless_provider  = "QRIS"
     payment.status             = "paid"
-    payment.amount             = reservation.total_price
-    payment.paid_at            = datetime.utcnow()
+    payment.amount              = reservation.total_price
+    payment.paid_at             = datetime.utcnow()
 
     reservation.status = "confirmed"
 
@@ -296,7 +320,6 @@ def confirm_payment():
         success=True,
         redirect_url=url_for("customer.invoice", reservation_id=reservation.id)
     )
-
 
 @customer_bp.route("/invoice/<string:reservation_id>", methods=["GET"])
 @login_required

@@ -12,10 +12,7 @@ function renderInvoice() {
   setEl('#inv-duration',   `${duration} Hours`);
 }
 
-function initDownloadBtn() {
-  $('#btn-download')?.addEventListener('click', () => {
-    alert('Download invoice PDF — fitur ini akan terhubung ke backend Flask kamu.');
-  });
+
 
   $('#btn-back')?.addEventListener('click', () => {
     window.location.href = 'choose-room.html';

@@ -161,7 +161,10 @@ def reservation_list():
     """Halaman 'Reservation' di sidebar admin -- tabel lengkap semua reservasi."""
     search = request.args.get("search", "").strip()
 
-    query = Reservation.query.join(Room)
+    # FIX: transaksi berstatus "pending" (belum dibayar / belum dikonfirmasi)
+    # disembunyikan dari Riwayat Transaksi admin -- hanya confirmed/arrived/
+    # completed/cancelled yang tampil di sini.
+    query = Reservation.query.join(Room).filter(Reservation.status != "pending")
 
     if search:
         query = query.filter(
@@ -194,7 +197,12 @@ def reservation_list():
 @admin_bp.route("/reservations/all", methods=["GET"])
 @admin_required
 def reservations():
-    all_reservations = Reservation.query.order_by(Reservation.created_at.desc()).all()
+    all_reservations = (
+        Reservation.query
+        .filter(Reservation.status != "pending")
+        .order_by(Reservation.created_at.desc())
+        .all()
+    )
     return render_template("admin/reservations.html", reservations=all_reservations)
 
 
@@ -229,6 +237,38 @@ def new_offline_reservation_page():
     """Halaman form input reservasi offline (customer walk-in)."""
     rooms = Room.query.filter(Room.status == "available").order_by(Room.room_code).all()
     return render_template("admin/offline_reservation.html", rooms=rooms)
+
+
+# FIX: endpoint booked-slots khusus admin, supaya form Reservasi Offline bisa
+# menampilkan & mendisable jam yang sudah dibooking -- logikanya disamakan
+# persis dengan customer.get_booked_slots (room+tanggal, status pending/confirmed).
+@admin_bp.route("/rooms/<string:room_id>/booked-slots", methods=["GET"])
+@admin_required
+def get_booked_slots_admin(room_id):
+    date_str = request.args.get("date")
+    if not date_str:
+        return jsonify(slots=[])
+
+    try:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify(slots=[])
+
+    reservations = Reservation.query.filter(
+        Reservation.room_id == room_id,
+        Reservation.status.in_(["pending", "confirmed"]),
+        func.date(Reservation.start_time) == target_date,
+    ).all()
+
+    slots = [
+        {
+            "start_time": r.start_time.isoformat(),
+            "end_time":   r.end_time.isoformat(),
+        }
+        for r in reservations
+    ]
+
+    return jsonify(slots=slots)
 
 
 @admin_bp.route("/reservations/offline", methods=["POST"])

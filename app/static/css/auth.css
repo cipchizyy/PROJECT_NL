@@ -179,3 +179,30 @@ body {
 .flash-success { background: #1a3a22; color: #8aff9a; }
 .flash-warning { background: #3a2f1a; color: #ffd98a; }
 .flash-info { background: #1a2a3a; color: #8ad9ff; }
+.password-wrapper {
+    position: relative;
+    display: flex;
+}
+
+.password-wrapper input {
+    width: 100%;
+    padding-right: 42px;
+}
+
+.toggle-password-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #8a8a9a;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.toggle-password-btn:hover {
+    color: #c77dff;
+}
