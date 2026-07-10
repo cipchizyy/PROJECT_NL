@@ -21,16 +21,13 @@ def login_page():
 
 
 @auth_bp.route("/signup", methods=["POST"])
+@auth_bp.route("/signup", methods=["POST"])
 def signup():
-    """
-    Sesuai mockup Sign Up: Name, Nomor Handphone, Email Address, Passcode.
-    """
     name = request.form.get("name", "").strip()
     phone_number = request.form.get("phone_number", "").strip()
     email = request.form.get("email", "").strip().lower()
     passcode = request.form.get("passcode", "")
 
-    # --- Validasi dasar ---
     if not all([name, phone_number, email, passcode]):
         flash("Semua field wajib diisi.", "danger")
         return redirect(url_for("auth.login_page"))
@@ -39,32 +36,100 @@ def signup():
         flash("Passcode minimal 6 karakter.", "danger")
         return redirect(url_for("auth.login_page"))
 
-    if User.query.filter_by(email=email).first():
-        flash("Email sudah terdaftar. Silakan login.", "warning")
-        return redirect(url_for("auth.login_page"))
+    existing_user = User.query.filter_by(email=email).first()
 
-    # --- Simpan user baru sebagai customer ---
+    if existing_user:
+        if existing_user.is_email_verified:
+            flash(
+                "Email sudah terdaftar. Silakan login.",
+                "warning"
+            )
+            return redirect(url_for("auth.login_page"))
+
+        # Pengguna sudah mendaftar, tetapi belum verifikasi.
+        # Buat OTP baru.
+        otp_code = existing_user.generate_email_verification_otp()
+
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"[ERROR] Gagal menyimpan OTP baru: {e}")
+
+            flash(
+                "Gagal membuat kode OTP. Silakan coba kembali.",
+                "danger"
+            )
+            return redirect(url_for("auth.login_page"))
+
+        try:
+            send_otp_email(
+                to_email=existing_user.email,
+                name=existing_user.name,
+                otp_code=otp_code,
+            )
+        except Exception as e:
+            print(f"[WARN] Gagal mengirim OTP: {e}")
+
+            flash(
+                "Kode OTP gagal dikirim. Silakan coba kirim ulang.",
+                "warning"
+            )
+
+        session["pending_verification_email"] = existing_user.email
+
+        return redirect(url_for("auth.verify_email_page"))
+
     new_user = User(
         name=name,
         email=email,
         phone_number=phone_number,
         role="customer",
+        is_email_verified=False,
     )
+
     new_user.set_password(passcode)
 
-    db.session.add(new_user)
-    db.session.commit()
+    # Membuat OTP dan menyimpan hash OTP ke object User.
+    otp_code = new_user.generate_email_verification_otp()
 
-    # --- Kirim welcome email via Resend (gagal kirim tidak boleh gagalkan signup) ---
     try:
-        send_welcome_email(to_email=new_user.email, name=new_user.name)
+        db.session.add(new_user)
+        db.session.commit()
     except Exception as e:
-        # Tetap lanjut, cuma log saja
-        print(f"[WARN] Gagal mengirim welcome email: {e}")
+        db.session.rollback()
+        print(f"[ERROR] Gagal menyimpan pengguna: {e}")
 
-    login_user(new_user)
-    flash(f"Selamat datang, {new_user.name}!", "success")
-    return redirect(url_for("customer.dashboard"))
+        flash(
+            "Pendaftaran gagal. Silakan coba kembali.",
+            "danger"
+        )
+        return redirect(url_for("auth.login_page"))
+
+    session["pending_verification_email"] = new_user.email
+
+    try:
+        send_otp_email(
+            to_email=new_user.email,
+            name=new_user.name,
+            otp_code=otp_code,
+        )
+
+        flash(
+            "Pendaftaran berhasil. Kode OTP telah dikirim ke email Anda.",
+            "success"
+        )
+    except Exception as e:
+        print(f"[WARN] Gagal mengirim OTP verifikasi: {e}")
+
+        flash(
+            "Akun berhasil dibuat, tetapi OTP gagal dikirim. "
+            "Silakan pilih kirim ulang OTP.",
+            "warning"
+        )
+
+    # Jangan login_user(new_user) di sini.
+    return redirect(url_for("auth.verify_email_page"))
 
 
 @auth_bp.route("/login", methods=["POST"])
