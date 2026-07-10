@@ -29,13 +29,13 @@
             {% endwith %}
 
             <div class="panel-card" style="max-width:520px; padding:28px;">
-                <form action="{{ url_for('admin.create_offline_reservation') }}" method="POST">
+                <form action="{{ url_for('admin.create_offline_reservation') }}" method="POST" id="offline-form">
 
                     <label for="room_id">Pilih Room</label>
                     <select name="room_id" id="room_id" required>
                         <option value="">-- Pilih room --</option>
                         {% for room in rooms %}
-                        <option value="{{ room.id }}">
+                        <option value="{{ room.id }}" data-price="{{ room.price_per_hour }}">
                             {{ room.room_code }} — {{ room.name }} (Rp {{ "{:,.0f}".format(room.price_per_hour|float) }}/jam)
                         </option>
                         {% endfor %}
@@ -47,13 +47,23 @@
                     <label for="guest_phone">No. HP</label>
                     <input type="text" name="guest_phone" id="guest_phone" placeholder="08xxxxxxxxxx">
 
-                    <label for="start_time">Waktu Mulai</label>
-                    <input type="datetime-local" name="start_time" id="start_time" required>
+                    <label>Tanggal</label>
+                    <div class="chip-group" id="picker-days"></div>
 
-                    <label for="duration_hours">Durasi (jam)</label>
-                    <input type="number" name="duration_hours" id="duration_hours" min="1" max="12" value="1" required>
+                    <label>Durasi</label>
+                    <div class="chip-group" id="picker-durations"></div>
 
-                    <button type="submit" class="btn-primary">Buat Reservasi</button>
+                    <label>Jam Mulai</label>
+                    <div class="chip-group chip-group--times" id="picker-times">
+                        <p class="picker-hint">Pilih room &amp; tanggal dulu untuk melihat jam yang tersedia.</p>
+                    </div>
+
+                    <!-- Hidden input ini yang benar-benar dikirim ke backend,
+                         diisi otomatis dari picker tanggal + jam di atas -->
+                    <input type="hidden" name="start_time" id="start_time" required>
+                    <input type="hidden" name="duration_hours" id="duration_hours" value="1" required>
+
+                    <button type="submit" class="btn-primary" id="submit-btn" disabled>Buat Reservasi</button>
                 </form>
             </div>
         </main>
