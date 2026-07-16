@@ -114,7 +114,7 @@
                         {% for p in payments %}
                         <tr>
                             <td>{{ p.paid_at.strftime("%Y-%m-%d %H:%M") if p.paid_at else "-" }}</td>
-                            <td>{{ p.reservation_id }}</td>
+                          <td>{{ p.reservation.booking_number if p.reservation else '-' }}</td>
                             <td><span class="sr-badge">{{ p.method or "-" }}</span></td>
                             <td class="sr-col-right">Rp {{ "{:,.0f}".format(p.amount|float) }}</td>
                         </tr>
