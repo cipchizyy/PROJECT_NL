@@ -365,6 +365,18 @@ def mark_arrived(reservation_id):
     reservation = Reservation.query.get_or_404(reservation_id)
     reservation.is_arrived = True
     reservation.arrived_at = datetime.utcnow()
+
+    # FIX: pembayaran cash baru dianggap lunas saat customer benar-benar
+    # datang (Mark Arrived), bukan saat reservasi dibuat -- sebelumnya
+    # payment.status untuk cash tetap "pending" selamanya, jadi tidak
+    # pernah terhitung di daily_revenue dashboard maupun Sales Report.
+    payment = reservation.payment
+    if payment and payment.method == "cash" and payment.status != "paid":
+        payment.status = "paid"
+        payment.paid_at = datetime.utcnow()
+        if not payment.amount:
+            payment.amount = reservation.total_price
+
     db.session.commit()
 
     flash(f"Reservasi #{reservation.booking_number} ditandai sudah datang.", "success")
