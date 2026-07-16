@@ -4,6 +4,11 @@
  * booking online customer: pilih room -> pilih tanggal -> pilih durasi ->
  * jam yang sudah bentrok dengan reservasi lain (status pending/confirmed)
  * otomatis di-disable, gak bisa dipilih.
+ *
+ * FIX: durasi maksimal ditampilkan cuma sampai 6 jam (samain kayak booking
+ * customer, sebelumnya sampai 12 jam). Juga toko tutup jam 01:00 -- begitu
+ * "Jam Mulai" dipilih, opsi durasi yang bakal melewati jam tutup otomatis
+ * di-disable (mis: pilih 22:00 -> cuma 1/2/3 Jam yang bisa dipilih).
  */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -19,7 +24,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const submitBtn      = $("submit-btn");
   const form           = $("offline-form");
 
-  const DURATIONS = [1, 2, 3, 4, 5, 6, 8, 12];
+  // FIX: cap durasi max 6 jam (dulu [1,2,3,4,5,6,8,12])
+  const DURATIONS = [1, 2, 3, 4, 5, 6];
   const ALL_HOURS = [
     "08:00","09:00","10:00","11:00","12:00","13:00",
     "14:00","15:00","16:00","17:00","18:00","19:00",
@@ -70,21 +76,51 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function renderDurations() {
-    durContainer.innerHTML = DURATIONS.map(h => `
-      <button type="button" class="chip${h === 1 ? ' selected' : ''}" data-value="${h}">${h} Jam</button>
-    `).join("");
+  // FIX: toko tutup jam 01:00 -- hitung berapa jam maksimal dari jam mulai
+  // sampai jam tutup (identik dengan logic CLOSING_TIME di admin.py).
+  function maxHoursForTime(timeStr) {
+    const [h, m] = timeStr.split(":").map(Number);
+    const startMinutes   = h * 60 + m;
+    const closingMinutes = 25 * 60; // 01:00 dinihari hari berikutnya = jam 25:00
+    return (closingMinutes - startMinutes) / 60;
+  }
 
-    durContainer.querySelectorAll(".chip").forEach(chip => {
+  function renderDurations() {
+    const maxAllowed = state.time ? maxHoursForTime(state.time) : Infinity;
+
+    durContainer.innerHTML = DURATIONS.map(h => {
+      const disabled = h > maxAllowed;
+      const title = disabled
+        ? `Toko tutup jam 01:00, mulai jam ${state.time} maksimal ${Math.floor(maxAllowed)} jam`
+        : "";
+      return `
+        <button type="button"
+                class="chip${disabled ? ' disabled' : ''}${state.duration === h ? ' selected' : ''}"
+                data-value="${h}"
+                ${disabled ? "disabled" : ""}
+                title="${title}">
+          ${h} Jam
+        </button>
+      `;
+    }).join("");
+
+    durContainer.querySelectorAll(".chip:not([disabled])").forEach(chip => {
       chip.addEventListener("click", () => {
         state.duration = Number(chip.dataset.value);
-        state.time = null;
         durContainer.querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
         chip.classList.add("selected");
         renderTimes();
         syncHiddenInputs();
       });
     });
+
+    // Kalau durasi yang lagi dipilih jadi gak valid lagi (karena jam mulai
+    // berubah), reset ke durasi terbesar yang masih diizinkan.
+    if (state.duration > maxAllowed) {
+      const fallback = DURATIONS.filter(h => h <= maxAllowed).pop();
+      state.duration = fallback || null;
+      renderDurations();
+    }
   }
 
   /* ── Cek apakah slot jam konflik dengan reservasi lain ── */
@@ -157,6 +193,9 @@ document.addEventListener("DOMContentLoaded", () => {
         state.time = chip.dataset.value;
         timesContainer.querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
         chip.classList.add("selected");
+        // FIX: begitu jam mulai dipilih, re-render pilihan durasi supaya
+        // opsi yang melewati jam tutup (01:00) otomatis di-disable.
+        renderDurations();
         syncHiddenInputs();
       });
     });
