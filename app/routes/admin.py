@@ -248,12 +248,102 @@ def delete_reservation(reservation_id):
 # =====================================================================
 
 
-@admin_bp.route("/reservations/offline/new", methods=["GET"])
+@admin_bp.route("/reservations/offline", methods=["POST"])
 @admin_required
-def new_offline_reservation_page():
-    """Halaman form input reservasi offline (customer walk-in)."""
-    rooms = Room.query.filter(Room.status == "available").order_by(Room.room_code).all()
-    return render_template("admin/offline_reservation.html", rooms=rooms)
+def create_offline_reservation():
+    """
+    Use case: Create Offline Reservation.
+    FIX: sebelumnya jsonify(...) -- diganti flash+redirect karena form di
+    offline_reservation.html submit biasa (bukan fetch/AJAX).
+    """
+    room_id     = request.form.get("room_id")
+    guest_name  = request.form.get("guest_name", "").strip()
+    guest_phone = request.form.get("guest_phone", "").strip() or None
+    start_time_str = request.form.get("start_time")
+
+    if not room_id or not guest_name or not start_time_str:
+        flash("Room, nama customer, dan waktu mulai wajib diisi.", "danger")
+        return redirect(url_for("admin.new_offline_reservation_page"))
+
+    try:
+        duration_hours = float(request.form.get("duration_hours", 1))
+    except (TypeError, ValueError):
+        duration_hours = 1
+
+    if duration_hours <= 0 or duration_hours > 12:
+        flash("Durasi harus antara 1-12 jam.", "danger")
+        return redirect(url_for("admin.new_offline_reservation_page"))
+
+    try:
+        start_time = datetime.strptime(start_time_str, "%Y-%m-%dT%H:%M")
+    except ValueError:
+        flash("Format waktu mulai tidak valid.", "danger")
+        return redirect(url_for("admin.new_offline_reservation_page"))
+
+    # FIX: toko tutup jam 01:00 -- durasi maksimal dibatasi supaya sesi
+    # reservasi offline tidak melewati jam tutup. Makin malam start_time,
+    # makin pendek durasi maksimal yang diizinkan (mis: mulai 22:00 -> maks 3 jam).
+    CLOSING_TIME = time(1, 0)
+    if start_time.time() < CLOSING_TIME:
+        closing_dt = datetime.combine(start_time.date(), CLOSING_TIME)
+    else:
+        closing_dt = datetime.combine(start_time.date() + timedelta(days=1), CLOSING_TIME)
+
+    max_allowed_hours = (closing_dt - start_time).total_seconds() / 3600
+    if duration_hours > max_allowed_hours:
+        flash(
+            f"Booking mulai jam {start_time.strftime('%H:%M')} maksimal "
+            f"{max_allowed_hours:.0f} jam (tutup jam 01:00).",
+            "danger",
+        )
+        return redirect(url_for("admin.new_offline_reservation_page"))
+
+    end_time = start_time + timedelta(hours=duration_hours)
+    room = Room.query.get_or_404(room_id)
+
+    conflict = Reservation.query.filter(
+        Reservation.room_id == room.id,
+        Reservation.status.in_(["pending", "confirmed"]),
+        Reservation.start_time < end_time,
+        Reservation.end_time > start_time,
+    ).first()
+    if conflict:
+        flash(f"Room {room.room_code} sudah dibooking di jam tersebut.", "danger")
+        return redirect(url_for("admin.new_offline_reservation_page"))
+
+    total_price = float(room.price_per_hour) * duration_hours
+
+    reservation = Reservation(
+        room_id=room.id,
+        guest_name=guest_name,
+        guest_phone=guest_phone,
+        start_time=start_time,
+        end_time=end_time,
+        duration_hours=duration_hours,
+        total_price=total_price,
+        source="offline",
+        status="confirmed",
+        created_by_admin_id=current_user.id,
+    )
+    db.session.add(reservation)
+    db.session.commit()
+
+    # FIX: reservasi offline sebelumnya TIDAK PERNAH membuat record Payment,
+    # jadi reservation.payment selalu None -> mark_arrived() diam-diam skip
+    # -> cash tidak pernah kehitung di daily_revenue / Sales Report walau
+    # badge sudah "Arrived". Dibuat "pending" dulu; otomatis "paid" saat
+    # admin klik "Mark Arrived".
+    payment = Payment(
+        reservation_id=reservation.id,
+        amount=total_price,
+        method="cash",
+        status="pending",
+    )
+    db.session.add(payment)
+    db.session.commit()
+
+    flash(f"Reservasi offline untuk {guest_name} berhasil dibuat.", "success")
+    return redirect(url_for("admin.reservation_list"))
 
 
 # FIX: endpoint booked-slots khusus admin, supaya form Reservasi Offline bisa
