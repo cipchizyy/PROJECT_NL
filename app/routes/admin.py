@@ -395,9 +395,21 @@ def create_game():
         flash("Nama game wajib diisi.", "danger")
         return redirect(url_for("admin.manage_game"))
 
+    # Cek duplikat nama game (case-insensitive) sebelum simpan
+    existing_game = Game.query.filter(func.lower(Game.name) == name.lower()).first()
+    if existing_game:
+        flash(f'Game "{name}" sudah ada di library.', "warning")
+        return redirect(url_for("admin.manage_game"))
+
     game = Game(name=name, category=category, description=description)
     db.session.add(game)
-    db.session.commit()
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash(f'Game "{name}" sudah ada di library.', "warning")
+        return redirect(url_for("admin.manage_game"))
 
     file = request.files.get("image")
     if file and file.filename:
@@ -409,7 +421,6 @@ def create_game():
 
     flash(f'Game "{game.name}" berhasil ditambahkan.', "success")
     return redirect(url_for("admin.manage_game"))
-
 
 # FIX: path & method disamakan dengan yang dipanggil games.js
 # (editGameForm.action = `/admin/games/${id}/edit`, method POST)
@@ -424,6 +435,15 @@ def update_game(game_id):
         flash("Nama game wajib diisi.", "danger")
         return redirect(url_for("admin.manage_game"))
 
+    # Cek duplikat nama, tapi abaikan game yang sedang diedit sendiri
+    existing_game = Game.query.filter(
+        func.lower(Game.name) == name.lower(),
+        Game.id != game_id
+    ).first()
+    if existing_game:
+        flash(f'Nama game "{name}" sudah dipakai oleh game lain.', "warning")
+        return redirect(url_for("admin.manage_game"))
+
     game.name = name
     game.category = request.form.get("category") or None
     game.description = request.form.get("description", "").strip() or None
@@ -435,10 +455,15 @@ def update_game(game_id):
         except ValueError as e:
             flash(str(e), "warning")
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash(f'Nama game "{name}" sudah dipakai oleh game lain.', "warning")
+        return redirect(url_for("admin.manage_game"))
+
     flash(f'Game "{game.name}" berhasil diperbarui.', "success")
     return redirect(url_for("admin.manage_game"))
-
 
 # FIX: path & method disamakan dengan games.js
 # (deleteGameForm.action = `/admin/games/${id}/delete`, method POST)
