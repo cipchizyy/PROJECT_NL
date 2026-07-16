@@ -115,18 +115,25 @@ def create_room():
 
     flash("Room berhasil ditambahkan!", "success")
     return redirect(url_for("admin.manage_room"))
+from sqlalchemy.exc import IntegrityError
 
-# ── Edit Room (POST dari modal Edit) ────────────────────────
 @admin_bp.route("/rooms/<room_id>/edit", methods=["POST"])
 @admin_required
 def edit_room(room_id):
     room = Room.query.get_or_404(room_id)
 
-    # FIX: field lama "room.room_number" dan "room.tier" DIHAPUS karena
-    # kolom itu TIDAK ADA di model Room kamu (yang ada: room_code, name,
-    # environment, console_type, dst) -- baris lama itu cuma nempel
-    # attribute Python biasa yang gak ke-save ke database, alias bug diam-diam.
-    room.room_code      = request.form.get("room_code", room.room_code)
+    new_room_code = request.form.get("room_code", room.room_code)
+
+    # Cek duplikat, tapi kecualikan room ini sendiri
+    duplicate = Room.query.filter(
+        Room.room_code == new_room_code,
+        Room.id != room.id
+    ).first()
+    if duplicate:
+        flash(f"Room dengan kode '{new_room_code}' sudah dipakai room lain. Gunakan kode yang berbeda.", "danger")
+        return redirect(url_for("admin.manage_room"))
+
+    room.room_code      = new_room_code
     room.name           = request.form.get("name", room.name)
     room.environment    = request.form.get("environment", room.environment)
     room.console_type   = request.form.get("console_type", room.console_type)
@@ -135,16 +142,22 @@ def edit_room(room_id):
     room.seating_type   = request.form.get("seating_type") or room.seating_type
     room.description    = request.form.get("description") or room.description
     room.status         = request.form.get("status", room.status)
-    # FIX: baris "room.game_count = ..." DIHAPUS (computed property, read-only)
 
     file = request.files.get("image")
     if file and file.filename:
         image_url = upload_room_image(file, room.id)
         room.image_url = image_url
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Room dengan kode '{new_room_code}' sudah dipakai room lain. Gunakan kode yang berbeda.", "danger")
+        return redirect(url_for("admin.manage_room"))
+
     flash("Room berhasil diupdate!", "success")
     return redirect(url_for("admin.manage_room"))
+
 
 
 # ── Delete Room ──────────────────────────────────────────────
