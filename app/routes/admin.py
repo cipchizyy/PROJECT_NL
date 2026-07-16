@@ -1,5 +1,5 @@
 from functools import wraps
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, time
 
 from sqlalchemy import func
 from flask import (
@@ -241,13 +241,52 @@ def delete_reservation(reservation_id):
     return jsonify({"success": True})
 
 
-# =====================================================================
-# GANTI route create_offline_reservation() yang lama dengan 3 route ini
-# (letakkan di admin.py, posisi sama seperti create_offline_reservation
-# yang lama -- setelah reservation_list / sebelum bagian Manage Game)
-# =====================================================================
+@admin_bp.route("/reservations/offline/new", methods=["GET"])
+@admin_required
+def new_offline_reservation_page():
+    """Halaman form input reservasi offline (customer walk-in)."""
+    rooms = Room.query.filter(Room.status == "available").order_by(Room.room_code).all()
+    return render_template("admin/offline_reservation.html", rooms=rooms)
 
 
+# FIX: endpoint booked-slots khusus admin, supaya form Reservasi Offline bisa
+# menampilkan & mendisable jam yang sudah dibooking -- logikanya disamakan
+# persis dengan customer.get_booked_slots (room+tanggal, status pending/confirmed).
+@admin_bp.route("/rooms/<string:room_id>/booked-slots", methods=["GET"])
+@admin_required
+def get_booked_slots_admin(room_id):
+    date_str = request.args.get("date")
+    if not date_str:
+        return jsonify(slots=[])
+
+    try:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify(slots=[])
+
+    reservations = Reservation.query.filter(
+        Reservation.room_id == room_id,
+        Reservation.status.in_(["pending", "confirmed"]),
+        func.date(Reservation.start_time) == target_date,
+    ).all()
+
+    slots = [
+        {
+            "start_time": r.start_time.isoformat(),
+            "end_time":   r.end_time.isoformat(),
+        }
+        for r in reservations
+    ]
+
+    return jsonify(slots=slots)
+
+
+# FIX: HANYA SATU fungsi create_offline_reservation di seluruh file --
+# sebelumnya ada 2 fungsi dengan nama & route sama persis
+# ("/reservations/offline", POST), sehingga Flask crash saat register
+# blueprint: "View function mapping is overwriting an existing endpoint
+# function: admin.create_offline_reservation". Fungsi kedua (versi lama
+# tanpa fix Payment & jam tutup) sudah dihapus.
 @admin_bp.route("/reservations/offline", methods=["POST"])
 @admin_required
 def create_offline_reservation():
@@ -274,6 +313,9 @@ def create_offline_reservation():
         flash("Durasi harus antara 1-12 jam.", "danger")
         return redirect(url_for("admin.new_offline_reservation_page"))
 
+    # FIX: parse string datetime-local ("YYYY-MM-DDTHH:MM") jadi objek datetime
+    # yang benar -- sebelumnya string mentah langsung dimasukkan ke kolom
+    # DateTime, yang bisa gagal tergantung driver database.
     try:
         start_time = datetime.strptime(start_time_str, "%Y-%m-%dT%H:%M")
     except ValueError:
@@ -301,6 +343,7 @@ def create_offline_reservation():
     end_time = start_time + timedelta(hours=duration_hours)
     room = Room.query.get_or_404(room_id)
 
+    # Cegah double booking (room yang sama, slot waktu bentrok)
     conflict = Reservation.query.filter(
         Reservation.room_id == room.id,
         Reservation.status.in_(["pending", "confirmed"]),
@@ -340,108 +383,6 @@ def create_offline_reservation():
         status="pending",
     )
     db.session.add(payment)
-    db.session.commit()
-
-    flash(f"Reservasi offline untuk {guest_name} berhasil dibuat.", "success")
-    return redirect(url_for("admin.reservation_list"))
-
-
-# FIX: endpoint booked-slots khusus admin, supaya form Reservasi Offline bisa
-# menampilkan & mendisable jam yang sudah dibooking -- logikanya disamakan
-# persis dengan customer.get_booked_slots (room+tanggal, status pending/confirmed).
-@admin_bp.route("/rooms/<string:room_id>/booked-slots", methods=["GET"])
-@admin_required
-def get_booked_slots_admin(room_id):
-    date_str = request.args.get("date")
-    if not date_str:
-        return jsonify(slots=[])
-
-    try:
-        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-    except ValueError:
-        return jsonify(slots=[])
-
-    reservations = Reservation.query.filter(
-        Reservation.room_id == room_id,
-        Reservation.status.in_(["pending", "confirmed"]),
-        func.date(Reservation.start_time) == target_date,
-    ).all()
-
-    slots = [
-        {
-            "start_time": r.start_time.isoformat(),
-            "end_time":   r.end_time.isoformat(),
-        }
-        for r in reservations
-    ]
-
-    return jsonify(slots=slots)
-
-
-@admin_bp.route("/reservations/offline", methods=["POST"])
-@admin_required
-def create_offline_reservation():
-    """
-    Use case: Create Offline Reservation.
-    FIX: sebelumnya jsonify(...) -- diganti flash+redirect karena form di
-    offline_reservation.html submit biasa (bukan fetch/AJAX).
-    """
-    room_id     = request.form.get("room_id")
-    guest_name  = request.form.get("guest_name", "").strip()
-    guest_phone = request.form.get("guest_phone", "").strip() or None
-    start_time_str = request.form.get("start_time")
-
-    if not room_id or not guest_name or not start_time_str:
-        flash("Room, nama customer, dan waktu mulai wajib diisi.", "danger")
-        return redirect(url_for("admin.new_offline_reservation_page"))
-
-    try:
-        duration_hours = float(request.form.get("duration_hours", 1))
-    except (TypeError, ValueError):
-        duration_hours = 1
-
-    if duration_hours <= 0 or duration_hours > 12:
-        flash("Durasi harus antara 1-12 jam.", "danger")
-        return redirect(url_for("admin.new_offline_reservation_page"))
-
-    # FIX: parse string datetime-local ("YYYY-MM-DDTHH:MM") jadi objek datetime
-    # yang benar -- sebelumnya string mentah langsung dimasukkan ke kolom
-    # DateTime, yang bisa gagal tergantung driver database.
-    try:
-        start_time = datetime.strptime(start_time_str, "%Y-%m-%dT%H:%M")
-    except ValueError:
-        flash("Format waktu mulai tidak valid.", "danger")
-        return redirect(url_for("admin.new_offline_reservation_page"))
-
-    end_time = start_time + timedelta(hours=duration_hours)
-    room = Room.query.get_or_404(room_id)
-
-    # Cegah double booking (room yang sama, slot waktu bentrok)
-    conflict = Reservation.query.filter(
-        Reservation.room_id == room.id,
-        Reservation.status.in_(["pending", "confirmed"]),
-        Reservation.start_time < end_time,
-        Reservation.end_time > start_time,
-    ).first()
-    if conflict:
-        flash(f"Room {room.room_code} sudah dibooking di jam tersebut.", "danger")
-        return redirect(url_for("admin.new_offline_reservation_page"))
-
-    total_price = float(room.price_per_hour) * duration_hours
-
-    reservation = Reservation(
-        room_id=room.id,
-        guest_name=guest_name,
-        guest_phone=guest_phone,
-        start_time=start_time,
-        end_time=end_time,
-        duration_hours=duration_hours,
-        total_price=total_price,
-        source="offline",
-        status="confirmed",
-        created_by_admin_id=current_user.id,
-    )
-    db.session.add(reservation)
     db.session.commit()
 
     flash(f"Reservasi offline untuk {guest_name} berhasil dibuat.", "success")
