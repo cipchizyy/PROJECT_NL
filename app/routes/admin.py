@@ -588,14 +588,20 @@ def download_sales_report():
         Spacer(1, 0.5 * cm),
     ]
 
+    # FIX: baris "for p in payments:" sebelumnya ada di kolom 0 (tidak
+    # ter-indent), sehingga keluar dari body function ini. Akibatnya baris
+    # "return send_file(...)" di bawah juga ikut keluar dari function ->
+    # SyntaxError: 'return' outside function saat di-deploy ke Vercel.
+    # Sekarang di-indent kembali supaya tetap berada di dalam
+    # download_sales_report().
     table_data = [["Tanggal Bayar", "Reservasi ID", "Metode", "Jumlah"]]
-for p in payments:
-    table_data.append([
-        p.paid_at.strftime("%Y-%m-%d %H:%M") if p.paid_at else "-",
-        p.reservation.booking_number if p.reservation else "-",   # <-- diganti
-        p.method or "-",
-        f"Rp {float(p.amount):,.0f}",
-    ])
+    for p in payments:
+        table_data.append([
+            p.paid_at.strftime("%Y-%m-%d %H:%M") if p.paid_at else "-",
+            p.reservation.booking_number if p.reservation else "-",
+            p.method or "-",
+            f"Rp {float(p.amount):,.0f}",
+        ])
 
     table = Table(table_data, colWidths=[4 * cm, 5 * cm, 3 * cm, 4 * cm])
     table.setStyle(TableStyle([
