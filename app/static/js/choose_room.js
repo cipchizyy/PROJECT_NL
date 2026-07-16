@@ -43,6 +43,23 @@ const ALL_HOURS = [
 
 const DURATIONS = [1, 2, 3, 4, 5, 6];
 
+/* ── Jam tutup operasional ─────────────────────────────────
+   25 = 01:00 dini hari (hari berikutnya). Ubah angka ini kalau
+   jam tutup toko beda (mis. 24 = 00:00, 26 = 02:00, dst). */
+const CLOSING_HOUR = 25;
+
+function hourToNum(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h + m / 60;
+}
+
+/* Durasi maksimal (dalam jam, dibulatkan ke bawah) yang masih
+   muat sebelum jam tutup, dihitung dari jam mulai tertentu. */
+function maxDurationFromTime(timeStr) {
+  const startHour = hourToNum(timeStr);
+  return Math.max(0, Math.floor(CLOSING_HOUR - startHour));
+}
+
 /* ── Cek apakah slot konflik dengan booked slots ─────────── */
 function isSlotBooked(timeStr, durationHours) {
   if (!state.selectedDate) return false;
@@ -147,17 +164,44 @@ function renderDays() {
 /* ── Render durations ────────────────────────────────────── */
 function renderDurations() {
   const container = $('modal-durations');
-  container.innerHTML = DURATIONS.map(h => `
-    <button class="chip" data-value="${h}">${h} Jam</button>
-  `).join('');
 
-  container.querySelectorAll('.chip').forEach(chip => {
+  // Kalau jam sudah dipilih, batasi durasi maksimal sesuai jam tutup
+  const maxAllowed = state.selectedTime ? maxDurationFromTime(state.selectedTime) : 6;
+
+  container.innerHTML = DURATIONS.map(h => {
+    const overflowsClosing = h > maxAllowed;
+    const isSelected       = state.selectedDuration === h;
+
+    return `
+      <button class="chip${overflowsClosing ? ' disabled' : ''}${isSelected ? ' selected' : ''}"
+              data-value="${h}"
+              ${overflowsClosing ? 'disabled' : ''}
+              title="${overflowsClosing ? 'Melebihi jam operasional (tutup 01:00)' : ''}">
+        ${h} Jam
+      </button>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.chip:not([disabled])').forEach(chip => {
     chip.addEventListener('click', () => {
       state.selectedDuration = Number(chip.dataset.value);
       container.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
       chip.classList.add('selected');
-      // Re-render times karena durasi mempengaruhi konflik
+
+      // Durasi baru bisa bikin jam yang sudah dipilih jadi tidak valid
+      // (overflow jam tutup / konflik) → renderTimes akan otomatis
+      // nge-disable jam itu, jadi kita cek & reset state kalau perlu.
       renderTimes();
+      if (state.selectedTime) {
+        const stillValid =
+          maxDurationFromTime(state.selectedTime) >= state.selectedDuration &&
+          !isSlotBooked(state.selectedTime, state.selectedDuration);
+        if (!stillValid) {
+          state.selectedTime = null;
+          renderTimes();
+        }
+      }
+
       updateCartBar();
       updateConfirmBtn();
     });
@@ -182,15 +226,25 @@ function renderTimes() {
     }
 
     // Disable kalau slot sudah dipesan (dengan durasi yang dipilih, default 1 jam)
-    const dur     = state.selectedDuration || 1;
+    const dur      = state.selectedDuration || 1;
     const isBooked = state.selectedDate ? isSlotBooked(t, dur) : false;
 
-    const disabled = isPast || isBooked || !state.selectedDate;
-    const label    = isBooked ? `${t} 🚫` : isPast ? `${t}` : t;
-    const title    = isBooked ? 'Slot ini sudah dipesan' : isPast ? 'Jam sudah lewat' : '';
+    // Disable kalau durasi yang dipilih bikin sesi lewat jam tutup
+    const isClosingOverflow = state.selectedDuration
+      ? maxDurationFromTime(t) < state.selectedDuration
+      : false;
+
+    const disabled  = isPast || isBooked || isClosingOverflow || !state.selectedDate;
+    const isSelected = !disabled && state.selectedTime === t;
+
+    let label = t;
+    let title = '';
+    if (isBooked) { label = `${t} 🚫`; title = 'Slot ini sudah dipesan'; }
+    else if (isClosingOverflow) { label = `${t} 🌙`; title = 'Durasi terpilih melebihi jam operasional (tutup 01:00)'; }
+    else if (isPast) { title = 'Jam sudah lewat'; }
 
     return `
-      <button class="chip${disabled ? ' disabled' : ''}"
+      <button class="chip${disabled ? ' disabled' : ''}${isSelected ? ' selected' : ''}"
               data-value="${t}"
               ${disabled ? 'disabled' : ''}
               title="${title}">
@@ -204,6 +258,16 @@ function renderTimes() {
       state.selectedTime = chip.dataset.value;
       container.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
       chip.classList.add('selected');
+
+      // Jam baru bisa bikin durasi yang sudah dipilih jadi kepanjangan
+      // (lewat jam tutup) → update batas durasi & reset kalau perlu.
+      renderDurations();
+      const maxAllowed = maxDurationFromTime(state.selectedTime);
+      if (state.selectedDuration && state.selectedDuration > maxAllowed) {
+        state.selectedDuration = null;
+        renderDurations();
+      }
+
       updateCartBar();
       updateConfirmBtn();
     });
