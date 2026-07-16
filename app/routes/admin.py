@@ -17,6 +17,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from app.extensions import db
 from app.models import Room, Reservation, User, Payment, Game               # <-- FIX: tambah Game
 from app.services.upload_service import upload_room_image, upload_game_image  # <-- FIX: tambah upload_game_image
+from sqlalchemy.exc import IntegrityError
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -74,17 +75,19 @@ def manage_room():
     all_games_json = [g.to_dict() for g in all_games]
 
     return render_template("admin/rooms.html", rooms=rooms, all_games_json=all_games_json)
-
-
-# ── Add Room (POST dari modal New Room) ──────────────────────
-# FIX: nama fungsi diganti dari add_room -> create_room, karena rooms.html
-# manggil {{ url_for('admin.create_room') }} -- kalau nama fungsi beda,
-# Flask gak nemu endpoint-nya dan langsung BuildError pas render.
+#add room
 @admin_bp.route("/rooms/add", methods=["POST"])
 @admin_required
 def create_room():
+    room_code = request.form.get("room_code")
+
+    # Cek duplikat lebih awal (lebih ramah daripada nunggu IntegrityError)
+    if Room.query.filter_by(room_code=room_code).first():
+        flash(f"Room dengan kode '{room_code}' sudah ada. Gunakan kode yang berbeda.", "danger")
+        return redirect(url_for("admin.manage_room"))
+
     room = Room(
-        room_code=request.form.get("room_code"),
+        room_code=room_code,
         name=request.form.get("name"),
         console_type=request.form.get("console_type"),
         environment=request.form.get("environment", "regular"),
@@ -94,12 +97,14 @@ def create_room():
         description=request.form.get("description") or None,
         status=request.form.get("status", "available"),
     )
-    # FIX: baris "game_count=int(request.form.get('game_count', 0))" DIHAPUS.
-    # game_count sekarang computed property di model Room (otomatis dari
-    # room.games), bukan lagi kolom manual -- kalau baris itu masih ada,
-    # ini bakal error "AttributeError: can't set attribute".
-    db.session.add(room)
-    db.session.commit()
+
+    try:
+        db.session.add(room)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Room dengan kode '{room_code}' sudah ada. Gunakan kode yang berbeda.", "danger")
+        return redirect(url_for("admin.manage_room"))
 
     # Upload gambar ke Cloudinary kalau ada
     file = request.files.get("image")
@@ -110,7 +115,6 @@ def create_room():
 
     flash("Room berhasil ditambahkan!", "success")
     return redirect(url_for("admin.manage_room"))
-
 
 # ── Edit Room (POST dari modal Edit) ────────────────────────
 @admin_bp.route("/rooms/<room_id>/edit", methods=["POST"])
