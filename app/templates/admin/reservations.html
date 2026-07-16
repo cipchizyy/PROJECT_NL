@@ -74,70 +74,18 @@
                 </div>
 
                 <table class="reservation-table">
-    <thead>
-        <tr>
-            <th>Booking ID</th>
-            <th>Customer</th>
-            <th>Station</th>
-            <th>Slot</th>
-            <th>Metode Pembayaran</th>
-            <th>Total Bayar</th>
-            <th>Status</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for r in reservations %}
-        {% set payment = payments_map.get(r.id) %}
-        <tr>
-            <td class="cell-booking-id">#{{ r.booking_number }}</td>
-            <td>{{ r.customer_display_name }}</td>
-            <td>{{ r.room.room_code }}</td>
-            <td class="cell-slot">
-                {{ r.start_time.strftime("%H:%M") }}<br>&ndash;<br>{{ r.end_time.strftime("%H:%M") }}
-            </td>
-            <td>
-                {% if payment %}
-                    {% if payment.method == 'cashless' %}
-                        QRIS
-                    {% elif payment.method == 'cash' %}
-                        Cash
-                    {% else %}
-                        {{ payment.method | title }}
-                    {% endif %}
-                {% else %}
-                    <span style="color:#666;">&mdash;</span>
-                {% endif %}
-            </td>
-            <td>
-                Rp {{ "{:,.0f}".format((payment.amount if payment else r.total_price) | float) }}
-            </td>
-            <td>
-                {% if r.display_status == 'arrived' %}
-                    <span class="badge badge-arrived">Arrived</span>
-                {% elif r.display_status == 'confirmed' %}
-                    <span class="badge badge-confirmed">Confirmed</span>
-                {% elif r.display_status == 'pending' %}
-                    <span class="badge badge-pending">Pending</span>
-                {% elif r.display_status == 'cancelled' %}
-                    <span class="badge badge-cancelled">Cancelled</span>
-                {% else %}
-                    <span class="badge badge-completed">Completed</span>
-                {% endif %}
-            </td>
-            <td>
-                {% if r.status == 'confirmed' and not r.is_arrived %}
-                <form action="{{ url_for('admin.mark_arrived', reservation_id=r.id) }}" method="POST" style="display:inline;">
-                    <button type="submit" class="row-action-btn">Mark Arrived</button>
-                </form>
-                {% endif %}
-            </td>
-        </tr>
-        {% else %}
-        <tr>
-            <td colspan="8" class="empty-row">Belum ada reservasi.</td>
-        </tr>
-        {% endfor %}
+                    <thead>
+                        <tr>
+                            <th>Booking ID</th>
+                            <th>Customer</th>
+                            <th>Station</th>
+                            <th>Slot</th>
+                            <th>Metode Pembayaran</th>
+                            <th>Total Bayar</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
                     <tbody>
                         {% for r in reservations %}
                         <tr>
@@ -146,6 +94,22 @@
                             <td>{{ r.room.room_code }}</td>
                             <td class="cell-slot">
                                 {{ r.start_time.strftime("%H:%M") }}<br>&ndash;<br>{{ r.end_time.strftime("%H:%M") }}
+                            </td>
+                            <td>
+                                {% if r.payment %}
+                                    {% if r.payment.method == 'cashless' %}
+                                        QRIS
+                                    {% elif r.payment.method == 'cash' %}
+                                        Cash
+                                    {% else %}
+                                        {{ r.payment.method | title }}
+                                    {% endif %}
+                                {% else %}
+                                    <span style="color:#666;">&mdash;</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                Rp {{ "{:,.0f}".format(r.total_price | float) }}
                             </td>
                             <td>
                                 {% if r.display_status == 'arrived' %}
@@ -170,7 +134,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6" class="empty-row">Belum ada reservasi.</td>
+                            <td colspan="8" class="empty-row">Belum ada reservasi.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
