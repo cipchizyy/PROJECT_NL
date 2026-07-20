@@ -1,74 +1,119 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Next Level Rent - Reservasi Offline</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='../static/css/admin/sidebar.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='../static/css/admin/offline_reservation.css') }}">
-</head>
-<body style="margin:0; background:#0d0d12; font-family:'Segoe UI', Arial, sans-serif;">
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/admin/sidebar.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/admin/offline_reservation.css') }}"
+    />
+  </head>
+  <body
+    style="
+      margin: 0;
+      background: #0d0d12;
+      font-family: &quot;Segoe UI&quot;, Arial, sans-serif;
+    "
+  >
     <div class="admin-layout">
-        {% set active_menu = 'reservation' %}
-        {% include "admin/sidebar.html" %}
+      {% set active_menu = 'reservation' %} {% include "admin/sidebar.html" %}
 
-        <main class="admin-main">
-            <a href="{{ url_for('admin.reservation_list') }}" class="back-link">&larr; Kembali ke Reservation List</a>
+      <main class="admin-main">
+        <a href="{{ url_for('admin.reservation_list') }}" class="back-link"
+          >&larr; Kembali ke Reservation List</a
+        >
 
-            <h1 class="admin-page-title">Reservasi Offline</h1>
-            <p>Input reservasi untuk customer walk-in yang datang langsung ke tempat.</p>
+        <h1 class="admin-page-title">Reservasi Offline</h1>
+        <p>
+          Input reservasi untuk customer walk-in yang datang langsung ke tempat.
+        </p>
 
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                <div class="flash-messages">
-                    {% for category, message in messages %}
-                    <div class="flash flash-{{ category }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            {% endwith %}
+        {% with messages = get_flashed_messages(with_categories=true) %} {% if
+        messages %}
+        <div class="flash-messages">
+          {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+        {% endif %} {% endwith %}
 
-            <div class="panel-card" style="max-width:520px; padding:28px;">
-                <form action="{{ url_for('admin.create_offline_reservation') }}" method="POST" id="offline-form">
+        <div class="panel-card" style="max-width: 520px; padding: 28px">
+          <form
+            action="{{ url_for('admin.create_offline_reservation') }}"
+            method="POST"
+            id="offline-form"
+          >
+            <label for="room_id">Pilih Room</label>
+            <select name="room_id" id="room_id" required>
+              <option value="">-- Pilih room --</option>
+              {% for room in rooms %}
+              <option
+                value="{{ room.id }}"
+                data-price="{{ room.price_per_hour }}"
+              >
+                {{ room.room_code }} — {{ room.name }} (Rp {{
+                "{:,.0f}".format(room.price_per_hour|float) }}/jam)
+              </option>
+              {% endfor %}
+            </select>
 
-                    <label for="room_id">Pilih Room</label>
-                    <select name="room_id" id="room_id" required>
-                        <option value="">-- Pilih room --</option>
-                        {% for room in rooms %}
-                        <option value="{{ room.id }}" data-price="{{ room.price_per_hour }}">
-                            {{ room.room_code }} — {{ room.name }} (Rp {{ "{:,.0f}".format(room.price_per_hour|float) }}/jam)
-                        </option>
-                        {% endfor %}
-                    </select>
+            <label for="guest_name">Nama Customer</label>
+            <input
+              type="text"
+              name="guest_name"
+              id="guest_name"
+              placeholder="Nama customer"
+              required
+            />
 
-                    <label for="guest_name">Nama Customer</label>
-                    <input type="text" name="guest_name" id="guest_name" placeholder="Nama customer" required>
+            <label for="guest_phone">No. HP</label>
+            <input
+              type="text"
+              name="guest_phone"
+              id="guest_phone"
+              placeholder="08xxxxxxxxxx"
+            />
 
-                    <label for="guest_phone">No. HP</label>
-                    <input type="text" name="guest_phone" id="guest_phone" placeholder="08xxxxxxxxxx">
+            <label>Tanggal</label>
+            <div class="chip-group" id="picker-days"></div>
 
-                    <label>Tanggal</label>
-                    <div class="chip-group" id="picker-days"></div>
+            <label>Durasi</label>
+            <div class="chip-group" id="picker-durations"></div>
 
-                    <label>Durasi</label>
-                    <div class="chip-group" id="picker-durations"></div>
-
-                    <label>Jam Mulai</label>
-                    <div class="chip-group chip-group--times" id="picker-times">
-                        <p class="picker-hint">Pilih room &amp; tanggal dulu untuk melihat jam yang tersedia.</p>
-                    </div>
-
-                    <!-- Hidden input ini yang benar-benar dikirim ke backend,
-                         diisi otomatis dari picker tanggal + jam di atas -->
-                    <input type="hidden" name="start_time" id="start_time" required>
-                    <input type="hidden" name="duration_hours" id="duration_hours" value="1" required>
-
-                    <button type="submit" class="btn-primary" id="submit-btn" disabled>Buat Reservasi</button>
-                </form>
+            <label>Jam Mulai</label>
+            <div class="chip-group chip-group--times" id="picker-times">
+              <p class="picker-hint">
+                Pilih room &amp; tanggal dulu untuk melihat jam yang tersedia.
+              </p>
             </div>
-        </main>
+
+            <!-- Hidden input ini yang benar-benar dikirim ke backend,
+                         diisi otomatis dari picker tanggal + jam di atas -->
+            <input type="hidden" name="start_time" id="start_time" required />
+            <input
+              type="hidden"
+              name="duration_hours"
+              id="duration_hours"
+              value="1"
+              required
+            />
+
+            <button type="submit" class="btn-primary" id="submit-btn" disabled>
+              Buat Reservasi
+            </button>
+          </form>
+        </div>
+      </main>
     </div>
 
-    <script src="{{ url_for('static', filename='../static/js/admin/offline_reservation.js') }}"></script>
-</body>
+    <script src="{{ url_for(
+    'static',
+    filename='js/admin/offline_reservation.js'
+) }}"></script>
+  </body>
 </html>

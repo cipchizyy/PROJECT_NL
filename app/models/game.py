@@ -14,19 +14,36 @@ class Game(db.Model):
     Terkait use case: Manage Game (Admin) -> Input Game -> Assign Game to Room.
     Dari POV Customer, game-game ini muncul di halaman detail room.
     """
+
     __tablename__ = "games"
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
-    name = db.Column(db.String(150), nullable=False)          # mis: "God of War Ragnarok"
-    category = db.Column(db.String(50), nullable=True)         # mis: "PS5", "PS4", "Switch"
+    name = db.Column(db.String(150), nullable=False)  # mis: "God of War Ragnarok"
+    category = db.Column(db.String(50), nullable=True)  # mis: "PS5", "PS4", "Switch"
     description = db.Column(db.Text, nullable=True)
-    image_url = db.Column(db.String(500), nullable=True)       # URL hasil upload Cloudinary
+    image_url = db.Column(db.String(500), nullable=True)  # URL hasil upload Cloudinary
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     # Relasi many-to-many ke Room lewat tabel pivot room_games
     rooms = db.relationship("Room", secondary=room_games, back_populates="games")
+
+
+    def to_card_dict(self):
+        """
+        Data ringan untuk card atau modal.
+        Tidak mengakses relasi rooms sehingga tidak memicu query tambahan.
+        """
+        return {
+            "id": self.id,
+            "name": self.name,
+            "category": self.category,
+            "description": self.description,
+            "image_url": self.image_url,
+    }
 
     def to_dict(self):
         return {

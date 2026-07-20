@@ -100,7 +100,7 @@
 
       <div class="rooms-grid" id="roomsGrid">
         {% for room in rooms %}
-        {% set ls = room.current_status() %}
+        {% set ls = room_statuses[room.id] %}
         <div class="room-card {{ ls.state }}" data-status="{{ ls.state }}" data-name="{{ room.room_code }} {{ room.name }}">
           <div class="room-card-top">
             <span class="room-type">{{ room.environment_label | upper }}</span>

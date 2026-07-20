@@ -22,6 +22,7 @@ def upload_room_image(file: FileStorage, room_id: str) -> str:
         folder="next-level-rent/rooms",
         public_id=f"room_{room_id}",
         overwrite=True,
+        invalidate=True,
         resource_type="image",
     )
     return result.get("secure_url")
@@ -35,6 +36,7 @@ def upload_game_image(file, game_id):
         folder="next-level-rent/games",
         public_id=f"game_{game_id}",
         overwrite=True,
+        invalidate=True,
         resource_type="image",
     )
     return result.get("secure_url")

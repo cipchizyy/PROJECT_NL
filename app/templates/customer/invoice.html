@@ -1,120 +1,150 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Digital Invoice — Next Level Rent</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/digital_invoice.css') }}">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Invoice — Next Level Rent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/digital_invoice.css') }}"
+    />
+    <script
+      defer
+      src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+    ></script>
 
-  <header class="nav">
-    <span class="nav__logo">NEXT LEVEL</span>
-    <div class="nav__icons">
-      <span>&#128276;</span>
-      <span>&#128100;</span>
-    </div>
-  </header>
-
-  <main class="invoice-wrapper">
-    <div class="receipt-card" id="receipt-card">
-      <div class="receipt-header">
-        <p class="receipt-header__title">Digital Receipt</p>
-        <span class="verified-badge">TRANSACTION VERIFIED</span>
+    <script
+      defer
+      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+    ></script>
+  </head>
+  <body>
+    <header class="nav">
+      <span class="nav__logo">NEXT LEVEL</span>
+      <div class="nav__icons">
+        <span>&#128276;</span>
+        <span>&#128100;</span>
       </div>
+    </header>
 
-      <div class="receipt-body">
-        <div class="receipt-body__top">
-          <div>
-            <p class="label">Booking ID</p>
-            <p class="booking-id">#{{ reservation.booking_number }}</p>
-          </div>
-          <span class="status-pill">
-            <span class="status-pill__dot"></span>
-            {{ 'PAID' if payment and payment.status == 'paid' else reservation.status | upper }}
-          </span>
+    <main class="invoice-wrapper">
+      <div class="receipt-card" id="receipt-card">
+        <div class="receipt-header">
+          <p class="receipt-header__title">Digital Receipt</p>
+          <span class="verified-badge">TRANSACTION VERIFIED</span>
         </div>
 
-        <div class="receipt-grid">
-          <div class="receipt-grid__col">
-            <p class="label">Station</p>
-            <p class="receipt-grid__value">{{ room.room_code }} · {{ room.environment_label }}</p>
+        <div class="receipt-body">
+          <div class="receipt-body__top">
+            <div>
+              <p class="label">Booking ID</p>
+              <p class="booking-id">#{{ reservation.booking_number }}</p>
+            </div>
+            <span class="status-pill">
+              <span class="status-pill__dot"></span>
+              {{ 'PAID' if payment and payment.status == 'paid' else
+              reservation.status | upper }}
+            </span>
           </div>
-          <div class="receipt-grid__col receipt-grid__col--right">
-            <p class="label">Date</p>
-            <p class="receipt-grid__value">{{ reservation.start_time.strftime('%B') }} {{ reservation.start_time.day }}, {{ reservation.start_time.year }}</p>
+
+          <div class="receipt-grid">
+            <div class="receipt-grid__col">
+              <p class="label">Station</p>
+              <p class="receipt-grid__value">
+                {{ room.room_code }} · {{ room.environment_label }}
+              </p>
+            </div>
+            <div class="receipt-grid__col receipt-grid__col--right">
+              <p class="label">Date</p>
+              <p class="receipt-grid__value">
+                {{ reservation.start_time.strftime('%B') }} {{
+                reservation.start_time.day }}, {{ reservation.start_time.year }}
+              </p>
+            </div>
+            <div class="receipt-grid__col">
+              <p class="label">Access Time</p>
+              <p class="receipt-grid__value">
+                {{ reservation.start_time.strftime('%H:%M') }} — {{
+                reservation.end_time.strftime('%H:%M') }}
+              </p>
+            </div>
+            <div class="receipt-grid__col receipt-grid__col--right">
+              <p class="label">Duration</p>
+              <p class="receipt-grid__value">
+                {{ reservation.duration_hours | int }} Hours
+              </p>
+            </div>
           </div>
-          <div class="receipt-grid__col">
-            <p class="label">Access Time</p>
-            <p class="receipt-grid__value">{{ reservation.start_time.strftime('%H:%M') }} — {{ reservation.end_time.strftime('%H:%M') }}</p>
-          </div>
-          <div class="receipt-grid__col receipt-grid__col--right">
-            <p class="label">Duration</p>
-            <p class="receipt-grid__value">{{ reservation.duration_hours | int }} Hours</p>
-          </div>
+
+          <p class="receipt-note">
+            Show this screen at the command center to initialize your session.
+          </p>
         </div>
 
-        <p class="receipt-note">Show this screen at the command center to initialize your session.</p>
-      </div>
-
-      <div class="receipt-footer">
-        <div class="info-box">
-          <span class="info-box__icon">i</span>
-          <span>Direkomendasikan datang 10 menit sebelum jadwal.</span>
+        <div class="receipt-footer">
+          <div class="info-box">
+            <span class="info-box__icon">i</span>
+            <span>Direkomendasikan datang 10 menit sebelum jadwal.</span>
+          </div>
+          <button class="btn-download" id="download-pdf-btn">
+            Download PDF Invoice
+          </button>
         </div>
-        <button class="btn-download" id="download-pdf-btn">Download PDF Invoice</button>
       </div>
-    </div>
 
-    <a href="{{ url_for('customer.dashboard') }}" class="back-link">Kembali ke Lounge</a>
-  </main>
+      <a href="{{ url_for('customer.dashboard') }}" class="back-link"
+        >Kembali ke Lounge</a
+      >
+    </main>
 
-  <script>
-  document.getElementById('download-pdf-btn').addEventListener('click', async () => {
-  const btn  = document.getElementById('download-pdf-btn');
-  const card = document.getElementById('receipt-card');
+    <script>
+      document
+        .getElementById("download-pdf-btn")
+        .addEventListener("click", async () => {
+          const btn = document.getElementById("download-pdf-btn");
+          const card = document.getElementById("receipt-card");
 
-  const originalText = btn.textContent;
-  btn.textContent = 'Generating PDF...';
-  btn.disabled = true;
+          const originalText = btn.textContent;
+          btn.textContent = "Generating PDF...";
+          btn.disabled = true;
 
-  card.classList.add('pdf-capture-mode');
+          card.classList.add("pdf-capture-mode");
 
-  try {
-    const canvas = await html2canvas(card, {
-      backgroundColor: '#121218',
-      scale: 2,
-      useCORS: true,
-    });
+          try {
+            const canvas = await html2canvas(card, {
+              backgroundColor: "#121218",
+              scale: 2,
+              useCORS: true,
+            });
 
-    const imgData  = canvas.toDataURL('image/png');
-    const { jsPDF } = window.jspdf;
+            const imgData = canvas.toDataURL("image/png");
+            const { jsPDF } = window.jspdf;
 
-    const pdfWidth  = canvas.width / 2;
-    const pdfHeight = canvas.height / 2;
+            const pdfWidth = canvas.width / 2;
+            const pdfHeight = canvas.height / 2;
 
-    const pdf = new jsPDF({
-      orientation: pdfHeight > pdfWidth ? 'portrait' : 'landscape',
-      unit: 'px',
-      format: [pdfWidth, pdfHeight],
-    });
+            const pdf = new jsPDF({
+              orientation: pdfHeight > pdfWidth ? "portrait" : "landscape",
+              unit: "px",
+              format: [pdfWidth, pdfHeight],
+            });
 
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save('Invoice-{{ reservation.booking_number }}.pdf');
-  } catch (err) {
-    console.error('Gagal generate PDF:', err);
-    alert('Gagal membuat PDF, coba lagi.');
-  } finally {
-    card.classList.remove('pdf-capture-mode');
-    btn.textContent = originalText;
-    btn.disabled = false;
-  }
-});
-</script>
-
-</body>
+            pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+            pdf.save("Invoice-{{ reservation.booking_number }}.pdf");
+          } catch (err) {
+            console.error("Gagal generate PDF:", err);
+            alert("Gagal membuat PDF, coba lagi.");
+          } finally {
+            card.classList.remove("pdf-capture-mode");
+            btn.textContent = originalText;
+            btn.disabled = false;
+          }
+        });
+    </script>
+  </body>
 </html>

@@ -1,200 +1,333 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Next Level - Manage Game</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/sidebar.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/games.css') }}">
-</head>
-<body style="margin:0; background:#0d0d12; font-family:'Segoe UI', Arial, sans-serif;">
-<div class="admin-layout">
-    {% set active_menu = 'manage_game' %}
-    {% include "admin/sidebar.html" %}
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/admin/sidebar.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/admin/games.css') }}"
+    />
+  </head>
+  <body
+    style="
+      margin: 0;
+      background: #0d0d12;
+      font-family: &quot;Segoe UI&quot;, Arial, sans-serif;
+    "
+  >
+    <div class="admin-layout">
+      {% set active_menu = 'manage_game' %} {% include "admin/sidebar.html" %}
 
-    <main class="admin-main">
-
+      <main class="admin-main">
         <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
+        {% with messages = get_flashed_messages(with_categories=true) %} {% if
+        messages %}
         <div class="flash-wrap">
-            {% for category, message in messages %}
-            <div class="flash flash-{{ category }}">
-                <span>{{ message }}</span>
-                <button class="flash-close" onclick="this.parentElement.remove()">×</button>
-            </div>
-            {% endfor %}
+          {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">
+            <span>{{ message }}</span>
+            <button class="flash-close" onclick="this.parentElement.remove()">
+              ×
+            </button>
+          </div>
+          {% endfor %}
         </div>
-        {% endif %}
-        {% endwith %}
+        {% endif %} {% endwith %}
 
         <h1 class="gm-title">Game Library</h1>
 
         <!-- Game Grid -->
         <div class="gm-grid" id="gameGrid">
-
-            <!-- Add New Game Card -->
-            <div class="gm-card-add" id="btnAddGame">
-                <div class="gm-add-inner">
-                    <div class="gm-add-icon">+</div>
-                    <p class="gm-add-label">Add<br>Game</p>
-                    <p class="gm-add-sub">Expand your<br>Library</p>
-                </div>
+          <!-- Add New Game Card -->
+          <div class="gm-card-add" id="btnAddGame">
+            <div class="gm-add-inner">
+              <div class="gm-add-icon">+</div>
+              <p class="gm-add-label">Add<br />Game</p>
+              <p class="gm-add-sub">Expand your<br />Library</p>
             </div>
+          </div>
 
-            <!-- Game Cards -->
-            {% for game in games %}
-            <div class="gm-card-game" data-game-id="{{ game.id }}">
-                <div class="gm-card-img">
-                    {% if game.image_url %}
-                    <img src="{{ game.image_url }}" alt="{{ game.name }}">
-                    {% else %}
-                    <div class="gm-img-placeholder">🎮</div>
-                    {% endif %}
-                </div>
-                <div class="gm-card-body">
-                    <span class="gm-category">{{ game.category or 'Uncategorized' }}</span>
-                    <span class="gm-name">{{ game.name }}</span>
-                    {% if game.description %}
-                    <span class="gm-desc">{{ game.description }}</span>
-                    {% endif %}
-                    <span class="gm-meta">Terpasang di {{ game.rooms | length }} room</span>
-                    <div class="gm-card-actions">
-                        <button class="gm-btn gm-btn-edit"
-                            onclick="openEditGameModal('{{ game.id }}', '{{ game.name | e }}', '{{ game.category or '' }}', '{{ game.description or '' | e }}')">
-                            <span>✏</span> Edit
-                        </button>
-                        <button class="gm-btn gm-btn-delete"
-                            onclick="confirmDeleteGame('{{ game.id }}', '{{ game.name | e }}')">
-                            <span>🗑</span> Delete
-                        </button>
-                    </div>
-                </div>
+          <!-- Game Cards -->
+          {% for game in games %}
+          <div class="gm-card-game" data-game-id="{{ game.id }}">
+            <div class="gm-card-img">
+              {% if game.image_url %}
+              <img
+                src="{{ game.image_url | cloudinary_thumb(320, 180) }}"
+                alt="{{ game.name }}"
+                width="320"
+                height="180"
+                decoding="async"
+                loading="{{ 'eager' if loop.index <= 4 else 'lazy' }}"
+                fetchpriority="{{ 'high' if loop.index <= 4 else 'low' }}"
+              />
+              {% else %}
+              <div class="gm-img-placeholder">🎮</div>
+              {% endif %}
             </div>
-            {% endfor %}
+            <div class="gm-card-body">
+              <span class="gm-category"
+                >{{ game.category or 'Uncategorized' }}</span
+              >
+              <span class="gm-name">{{ game.name }}</span>
+              {% if game.description %}
+              <span class="gm-desc">{{ game.description }}</span>
+              {% endif %}
+              <span class="gm-meta"
+                >Terpasang di {{ game.rooms | length }} room</span
+              >
+              <div class="gm-card-actions">
+                <button
+                  class="gm-btn gm-btn-edit"
+                  onclick="openEditGameModal('{{ game.id }}', '{{ game.name | e }}', '{{ game.category or '' }}', '{{ game.description or '' | e }}')"
+                >
+                  <span>✏</span> Edit
+                </button>
+                <button
+                  class="gm-btn gm-btn-delete"
+                  onclick="confirmDeleteGame('{{ game.id }}', '{{ game.name | e }}')"
+                >
+                  <span>🗑</span> Delete
+                </button>
+              </div>
+            </div>
+          </div>
+          {% endfor %} {% if not games %}
+          <div class="gm-empty">
+            Belum ada game. Klik <strong>+ Add Game</strong> untuk menambahkan
+            game pertama.
+          </div>
+          {% endif %}
+        </div>
+            
 
-            {% if not games %}
-            <div class="gm-empty">Belum ada game. Klik <strong>+ Add Game</strong> untuk menambahkan game pertama.</div>
+        {% if pagination.pages > 1 %}
+        <nav class="gm-pagination" aria-label="Navigasi halaman game">
+
+            {% if pagination.has_prev %}
+            <a
+                class="gm-page-btn"
+                href="{{ url_for('admin.manage_game', page=pagination.prev_num) }}"
+            >
+                ← Sebelumnya
+            </a>
+            {% else %}
+            <span class="gm-page-btn gm-page-btn-disabled">
+                ← Sebelumnya
+            </span>
             {% endif %}
-        </div>
+
+            <span class="gm-page-info">
+                Halaman {{ pagination.page }} dari {{ pagination.pages }}
+            </span>
+
+            {% if pagination.has_next %}
+            <a
+                class="gm-page-btn"
+                href="{{ url_for('admin.manage_game', page=pagination.next_num) }}"
+            >
+                Berikutnya →
+            </a>
+            {% else %}
+            <span class="gm-page-btn gm-page-btn-disabled">
+                Berikutnya →
+            </span>
+            {% endif %}
+
+        </nav>
+        {% endif %}
+
     </main>
-</div>
-
-<!-- ══════════════ MODAL: ADD GAME ══════════════ -->
-<div class="modal-overlay" id="modalAddGame">
-    <div class="modal-panel">
-        <div class="modal-header">
-            <h2 class="modal-title">Tambah Game Baru</h2>
-            <button class="modal-close" onclick="closeModal('modalAddGame')">×</button>
-        </div>
-        <form action="{{ url_for('admin.create_game') }}" method="POST" enctype="multipart/form-data" class="modal-form">
-            <div class="form-group">
-                <label>Nama Game</label>
-                <input type="text" name="name" placeholder="God of War Ragnarok" required>
-            </div>
-            <div class="form-group">
-                <label>Kategori / Platform</label>
-                <select name="category">
-                    <option value="">Pilih kategori</option>
-                    <option value="PS5">PS5</option>
-                    <option value="PS4">PS4</option>
-                    <option value="PS4 Pro">PS4 Pro</option>
-                    <option value="Nintendo Switch">Nintendo Switch</option>
-                    <option value="Board Game">Board Game</option>
-                    <option value="Lainnya">Lainnya</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Deskripsi (opsional)</label>
-                <textarea name="description" placeholder="Deskripsi singkat game..." rows="2"></textarea>
-            </div>
-            <div class="form-group">
-                <label>Cover / Thumbnail Game</label>
-                <div class="file-upload-area">
-                    <input type="file" name="image" accept="image/*" id="addGameFileInput" style="display:none">
-                    <div class="file-upload-placeholder" onclick="document.getElementById('addGameFileInput').click()">
-                        <span class="file-upload-icon">🖼</span>
-                        <span>Klik untuk upload cover</span>
-                        <span class="file-upload-hint">JPG, PNG — maks 5MB</span>
-                    </div>
-                    <p class="file-name" id="addGameFileName"></p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeModal('modalAddGame')">Batal</button>
-                <button type="submit" class="btn-save">Tambah Game</button>
-            </div>
-        </form>
     </div>
-</div>
 
-<!-- ══════════════ MODAL: EDIT GAME ══════════════ -->
-<div class="modal-overlay" id="modalEditGame">
-    <div class="modal-panel">
+    <!-- ══════════════ MODAL: ADD GAME ══════════════ -->
+    <div class="modal-overlay" id="modalAddGame">
+      <div class="modal-panel">
         <div class="modal-header">
-            <h2 class="modal-title">Edit Game</h2>
-            <button class="modal-close" onclick="closeModal('modalEditGame')">×</button>
+          <h2 class="modal-title">Tambah Game Baru</h2>
+          <button class="modal-close" onclick="closeModal('modalAddGame')">
+            ×
+          </button>
         </div>
-        <form id="editGameForm" method="POST" enctype="multipart/form-data" class="modal-form">
-            <div class="form-group">
-                <label>Nama Game</label>
-                <input type="text" name="name" id="edit_game_name" required>
+        <form
+          action="{{ url_for('admin.create_game') }}"
+          method="POST"
+          enctype="multipart/form-data"
+          class="modal-form"
+        >
+          <div class="form-group">
+            <label>Nama Game</label>
+            <input
+              type="text"
+              name="name"
+              placeholder="God of War Ragnarok"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label>Kategori / Platform</label>
+            <select name="category">
+              <option value="">Pilih kategori</option>
+              <option value="PS5">PS5</option>
+              <option value="PS4">PS4</option>
+              <option value="PS4 Pro">PS4 Pro</option>
+              <option value="Nintendo Switch">Nintendo Switch</option>
+              <option value="Board Game">Board Game</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Deskripsi (opsional)</label>
+            <textarea
+              name="description"
+              placeholder="Deskripsi singkat game..."
+              rows="2"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label>Cover / Thumbnail Game</label>
+            <div class="file-upload-area">
+              <input
+                type="file"
+                name="image"
+                accept="image/*"
+                id="addGameFileInput"
+                style="display: none"
+              />
+              <div
+                class="file-upload-placeholder"
+                onclick="document.getElementById('addGameFileInput').click()"
+              >
+                <span class="file-upload-icon">🖼</span>
+                <span>Klik untuk upload cover</span>
+                <span class="file-upload-hint">JPG, PNG — maks 5MB</span>
+              </div>
+              <p class="file-name" id="addGameFileName"></p>
             </div>
-            <div class="form-group">
-                <label>Kategori / Platform</label>
-                <select name="category" id="edit_game_category">
-                    <option value="">Pilih kategori</option>
-                    <option value="PS5">PS5</option>
-                    <option value="PS4">PS4</option>
-                    <option value="PS4 Pro">PS4 Pro</option>
-                    <option value="Nintendo Switch">Nintendo Switch</option>
-                    <option value="Board Game">Board Game</option>
-                    <option value="Lainnya">Lainnya</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Deskripsi (opsional)</label>
-                <textarea name="description" id="edit_game_description" rows="2"></textarea>
-            </div>
-            <div class="form-group">
-                <label>Ganti Cover Game (opsional)</label>
-                <div class="file-upload-area">
-                    <input type="file" name="image" accept="image/*" id="editGameFileInput" style="display:none">
-                    <div class="file-upload-placeholder" onclick="document.getElementById('editGameFileInput').click()">
-                        <span class="file-upload-icon">🖼</span>
-                        <span>Klik untuk ganti cover</span>
-                        <span class="file-upload-hint">Biarkan kosong jika tidak ingin ganti</span>
-                    </div>
-                    <p class="file-name" id="editGameFileName"></p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeModal('modalEditGame')">Batal</button>
-                <button type="submit" class="btn-save">Simpan Perubahan</button>
-            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn-cancel"
+              onclick="closeModal('modalAddGame')"
+            >
+              Batal
+            </button>
+            <button type="submit" class="btn-save">Tambah Game</button>
+          </div>
         </form>
+      </div>
     </div>
-</div>
 
-<!-- ══════════════ MODAL: DELETE CONFIRM ══════════════ -->
-<div class="modal-overlay" id="modalDeleteGame">
-    <div class="modal-panel modal-panel-sm">
+    <!-- ══════════════ MODAL: EDIT GAME ══════════════ -->
+    <div class="modal-overlay" id="modalEditGame">
+      <div class="modal-panel">
         <div class="modal-header">
-            <h2 class="modal-title modal-title-danger">Hapus Game?</h2>
-            <button class="modal-close" onclick="closeModal('modalDeleteGame')">×</button>
+          <h2 class="modal-title">Edit Game</h2>
+          <button class="modal-close" onclick="closeModal('modalEditGame')">
+            ×
+          </button>
+        </div>
+        <form
+          id="editGameForm"
+          method="POST"
+          enctype="multipart/form-data"
+          class="modal-form"
+        >
+          <div class="form-group">
+            <label>Nama Game</label>
+            <input type="text" name="name" id="edit_game_name" required />
+          </div>
+          <div class="form-group">
+            <label>Kategori / Platform</label>
+            <select name="category" id="edit_game_category">
+              <option value="">Pilih kategori</option>
+              <option value="PS5">PS5</option>
+              <option value="PS4">PS4</option>
+              <option value="PS4 Pro">PS4 Pro</option>
+              <option value="Nintendo Switch">Nintendo Switch</option>
+              <option value="Board Game">Board Game</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Deskripsi (opsional)</label>
+            <textarea
+              name="description"
+              id="edit_game_description"
+              rows="2"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label>Ganti Cover Game (opsional)</label>
+            <div class="file-upload-area">
+              <input
+                type="file"
+                name="image"
+                accept="image/*"
+                id="editGameFileInput"
+                style="display: none"
+              />
+              <div
+                class="file-upload-placeholder"
+                onclick="document.getElementById('editGameFileInput').click()"
+              >
+                <span class="file-upload-icon">🖼</span>
+                <span>Klik untuk ganti cover</span>
+                <span class="file-upload-hint"
+                  >Biarkan kosong jika tidak ingin ganti</span
+                >
+              </div>
+              <p class="file-name" id="editGameFileName"></p>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn-cancel"
+              onclick="closeModal('modalEditGame')"
+            >
+              Batal
+            </button>
+            <button type="submit" class="btn-save">Simpan Perubahan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ══════════════ MODAL: DELETE CONFIRM ══════════════ -->
+    <div class="modal-overlay" id="modalDeleteGame">
+      <div class="modal-panel modal-panel-sm">
+        <div class="modal-header">
+          <h2 class="modal-title modal-title-danger">Hapus Game?</h2>
+          <button class="modal-close" onclick="closeModal('modalDeleteGame')">
+            ×
+          </button>
         </div>
         <p class="delete-confirm-text">
-            Game <strong id="deleteGameName"></strong> akan dihapus permanen dan otomatis lepas dari semua room. Tindakan ini tidak bisa dibatalkan.
+          Game <strong id="deleteGameName"></strong> akan dihapus permanen dan
+          otomatis lepas dari semua room. Tindakan ini tidak bisa dibatalkan.
         </p>
         <form id="deleteGameForm" method="POST">
-            <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeModal('modalDeleteGame')">Batal</button>
-                <button type="submit" class="btn-delete">Ya, Hapus</button>
-            </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn-cancel"
+              onclick="closeModal('modalDeleteGame')"
+            >
+              Batal
+            </button>
+            <button type="submit" class="btn-delete">Ya, Hapus</button>
+          </div>
         </form>
+      </div>
     </div>
-</div>
 
-<script src="{{ url_for('static', filename='js/admin/games.js') }}"></script>
-</body>
+    <script src="{{ url_for('static', filename='js/admin/games.js') }}"></script>
+  </body>
 </html>

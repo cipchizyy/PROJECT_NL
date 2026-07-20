@@ -91,7 +91,7 @@ def send_email(to_email: str, subject: str, html_body: str):
                 mail_host,
                 mail_port,
                 context=ssl_context,
-                timeout=30
+                timeout=12
             ) as smtp:
                 smtp.login(
                     mail_username,
@@ -104,7 +104,7 @@ def send_email(to_email: str, subject: str, html_body: str):
             with smtplib.SMTP(
                 mail_host,
                 mail_port,
-                timeout=30
+                timeout=12
             ) as smtp:
                 smtp.ehlo()
 

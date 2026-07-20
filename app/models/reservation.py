@@ -19,10 +19,34 @@ class Reservation(db.Model):
     atau oleh Admin (offline, "Create Offline Reservation").
     Update & Delete Reservation adalah <<extend>> dari Manage Room (khusus Admin).
     """
+
     __tablename__ = "reservations"
 
+    __table_args__ = (
+        db.Index(
+            "ix_reservation_room_status_start",
+            "room_id",
+            "status",
+            "start_time",
+        ),
+        db.Index(
+            "ix_reservation_room_status_end",
+            "room_id",
+            "status",
+            "end_time",
+        ),
+        db.Index(
+            "ix_reservation_customer_status_start",
+            "customer_id",
+            "status",
+            "start_time",
+        ),
+    )
+
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
-    booking_number = db.Column(db.String(20), unique=True, nullable=False, default=generate_booking_number)
+    booking_number = db.Column(
+        db.String(20), unique=True, nullable=False, default=generate_booking_number
+    )
     # Booking ID pendek (mis: "NL-9942") yang ditampilkan di tabel Reservation List admin,
     # supaya lebih mudah disebut/dicari dibanding UUID panjang.
 
@@ -42,7 +66,9 @@ class Reservation(db.Model):
     total_price = db.Column(db.Numeric(10, 2), nullable=False)
 
     status = db.Column(
-        db.Enum("pending", "confirmed", "cancelled", "completed", name="reservation_status"),
+        db.Enum(
+            "pending", "confirmed", "cancelled", "completed", name="reservation_status"
+        ),
         default="pending",
         nullable=False,
     )
@@ -58,15 +84,21 @@ class Reservation(db.Model):
         nullable=False,
     )
 
-    created_by_admin_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
+    created_by_admin_id = db.Column(
+        db.String(36), db.ForeignKey("users.id"), nullable=True
+    )
     # diisi kalau reservasi dibuat lewat "Create Offline Reservation" oleh admin
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     # Relasi
     room = db.relationship("Room", back_populates="reservations")
-    customer = db.relationship("User", back_populates="reservations", foreign_keys=[customer_id])
+    customer = db.relationship(
+        "User", back_populates="reservations", foreign_keys=[customer_id]
+    )
     created_by_admin = db.relationship("User", foreign_keys=[created_by_admin_id])
     payment = db.relationship("Payment", back_populates="reservation", uselist=False)
 

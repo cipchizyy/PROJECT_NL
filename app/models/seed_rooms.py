@@ -15,43 +15,43 @@ app = create_app()
 SAMPLE_ROOMS = [
     {
         "room_code": "R-01", "name": "Room 01", "console_type": "PS5",
-        "environment": "regular", "price_per_hour": 10000, "game_count": 13,
+        "environment": "regular", "price_per_hour": 10000,
         "room_type": "smoking", "seating_type": "Cozy Beanbag Seating", "status": "available",
     },
     {
         "room_code": "R-02", "name": "Room 02", "console_type": "PS5",
-        "environment": "regular", "price_per_hour": 10000, "game_count": 13,
+        "environment": "regular", "price_per_hour": 10000,
         "room_type": "smoking", "seating_type": "Cozy Beanbag Seating", "status": "available",
     },
     {
         "room_code": "R-03", "name": "Room 03", "console_type": "PS5",
-        "environment": "regular", "price_per_hour": 10000, "game_count": 13,
+        "environment": "regular", "price_per_hour": 10000,
         "room_type": "smoking", "seating_type": "Cozy Beanbag Seating", "status": "available",
     },
     {
         "room_code": "R-04", "name": "Room 04", "console_type": "PS5",
-        "environment": "regular", "price_per_hour": 10000, "game_count": 13,
+        "environment": "regular", "price_per_hour": 10000, 
         "room_type": "non_smoking", "seating_type": "Cozy Beanbag Seating", "status": "available",
     },
     {
         "room_code": "R-05", "name": "Room 05", "console_type": "PS5",
-        "environment": "regular", "price_per_hour": 10000, "game_count": 13,
+        "environment": "regular", "price_per_hour": 10000,
         "room_type": "non_smoking", "seating_type": "Cozy Beanbag Seating", "status": "available",
     },
     {
         "room_code": "R-06", "name": "Room 06", "console_type": "PS5",
-        "environment": "regular", "price_per_hour": 10000, "game_count": 13,
+        "environment": "regular", "price_per_hour": 10000,
         "room_type": "non_smoking", "seating_type": "Cozy Beanbag Seating", "status": "available",
     },
     # --- Contoh isi kategori Regular Pro & VIP, biar sidebar filter ada isinya ---
     {
         "room_code": "RP-01", "name": "Pro Room 01", "console_type": "PS5 Pro",
-        "environment": "regular_pro", "price_per_hour": 18000, "game_count": 20,
+        "environment": "regular_pro", "price_per_hour": 18000,
         "room_type": "non_smoking", "seating_type": "Gaming Chair", "status": "available",
     },
     {
         "room_code": "V-01", "name": "VIP Room 01", "console_type": "PS5 Slim",
-        "environment": "vip", "price_per_hour": 30000, "game_count": 25,
+        "environment": "vip", "price_per_hour": 30000,
         "room_type": "non_smoking", "seating_type": "Private Sofa", "status": "available",
     },
 ]

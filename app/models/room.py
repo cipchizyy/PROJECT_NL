@@ -127,8 +127,9 @@ class Room(db.Model):
 
         return {"state": "available", "minutes_left": None}
 
-    def to_dict(self):
-        live_status = self.current_status()
+    def to_dict(self, live_status=None):
+        if live_status is None:
+            live_status = self.current_status()
         return {
             "id": self.id,
             "room_code": self.room_code,
@@ -147,14 +148,9 @@ class Room(db.Model):
             "live_status": live_status,
         }
 
-    def to_dict_with_games(self):
-        """
-        Sama seperti to_dict(), ditambah daftar detail game (bukan cuma jumlahnya)
-        yang terpasang di room ini. Dipisah supaya to_dict() tetap ringan dan
-        tidak melakukan query tambahan kalau tidak dibutuhkan.
-        """
-        data = self.to_dict()
-        data["games"] = [g.to_dict() for g in self.games]
+    def to_dict_with_games(self, live_status=None):
+        data = self.to_dict(live_status=live_status)
+        data["games"] = [g.to_card_dict() for g in self.games]
         return data
 
     def __repr__(self):

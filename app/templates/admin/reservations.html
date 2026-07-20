@@ -1,146 +1,466 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <title>Next Level Rent - Reservation</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='../static/css/admin/sidebar.css') }}">
-</head>
-<body style="margin:0; background:#0d0d12; font-family:'Segoe UI', Arial, sans-serif;">
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/admin/sidebar.css') }}"
+    />
+
+    <style>
+      .reservation-table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+      }
+
+      .admin-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 22px 16px 6px;
+      }
+
+      .admin-pagination__button,
+      .admin-pagination__disabled {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 108px;
+        padding: 9px 14px;
+        border: 1px solid #343442;
+        border-radius: 8px;
+        background: #17171f;
+        color: #d7c5ff;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        transition:
+          background 0.2s ease,
+          border-color 0.2s ease,
+          color 0.2s ease;
+      }
+
+      .admin-pagination__button:hover {
+        border-color: #e94dd1;
+        background: #271827;
+        color: #ffffff;
+      }
+
+      .admin-pagination__disabled {
+        color: #6f6f7d;
+        cursor: not-allowed;
+        opacity: 0.45;
+      }
+
+      .admin-pagination__info {
+        color: #aaaabb;
+        font-size: 13px;
+        text-align: center;
+      }
+
+      .reservation-result-info {
+        padding: 14px 18px 0;
+        color: #77778a;
+        font-size: 12px;
+      }
+
+      @media (max-width: 600px) {
+        .admin-pagination {
+          gap: 7px;
+        }
+
+        .admin-pagination__button,
+        .admin-pagination__disabled {
+          min-width: auto;
+          padding: 8px 10px;
+          font-size: 12px;
+        }
+
+        .admin-pagination__info {
+          font-size: 12px;
+        }
+      }
+    </style>
+  </head>
+
+  <body
+    style="
+      margin: 0;
+      background: #0d0d12;
+      font-family: &quot;Segoe UI&quot;, Arial, sans-serif;
+    "
+  >
     <div class="admin-layout">
-        {% set active_menu = 'reservation' %}
-        {% include "admin/sidebar.html" %}
+      {% set active_menu = 'reservation' %} {% include "admin/sidebar.html" %}
 
-        <main class="admin-main">
-            <div class="status-bar">
-                <span class="pulse-dot"></span>
-                ALL NODES OPERATIONAL
-                <span class="status-bar-divider"></span>
-            </div>
+      <main class="admin-main">
+        <div class="status-bar">
+          <span class="pulse-dot"></span>
+          ALL NODES OPERATIONAL
+          <span class="status-bar-divider"></span>
+        </div>
 
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <div class="flash-messages" style="margin-bottom:16px;">
-                        {% for category, message in messages %}
-                            <div class="flash flash-{{ category }}" style="padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:8px;
-                                {% if category == 'success' %}background:#1a3a22; color:#8aff9a;
-                                {% elif category == 'danger' %}background:#3a1a1a; color:#ff8a8a;
-                                {% else %}background:#1a2a3a; color:#8ad9ff;{% endif %}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endwith %}
+        <!-- FLASH MESSAGES -->
+        {% with messages = get_flashed_messages(with_categories=true) %} {% if
+        messages %}
+        <div class="flash-messages" style="margin-bottom: 16px">
+          {% for category, message in messages %}
+          <div
+            class="flash flash-{{ category }}"
+            style="
+                                    padding: 10px 14px;
+                                    border-radius: 8px;
+                                    font-size: 13px;
+                                    margin-bottom: 8px;
 
-            <div class="reservation-toolbar" style="align-items:flex-end; display:flex; gap:16px; flex-wrap:wrap;">
-                <form method="GET" id="date-filter-form" style="display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap;">
-                    {% if search %}<input type="hidden" name="search" value="{{ search }}">{% endif %}
-
-                    <div>
-                        <label for="filter-start-date" style="display:block; color:#aaa; font-size:13px; margin-bottom:6px;">Dari tanggal</label>
-                        <input type="date" id="filter-start-date" name="start_date" value="{{ start_date }}"
-                            style="padding:10px 12px; border-radius:8px; border:1px solid #333; background:#15151d; color:#fff; font-size:14px;">
-                    </div>
-
-                    <div>
-                        <label for="filter-end-date" style="display:block; color:#aaa; font-size:13px; margin-bottom:6px;">Sampai tanggal</label>
-                        <input type="date" id="filter-end-date" name="end_date" value="{{ end_date }}"
-                            style="padding:10px 12px; border-radius:8px; border:1px solid #333; background:#15151d; color:#fff; font-size:14px;">
-                    </div>
-
-                    <button type="submit" style="padding:11px 24px; border-radius:8px; border:none; background:#e94dd1; color:#fff; font-weight:600; cursor:pointer; font-size:14px;">
-                        Terapkan
-                    </button>
-                    <a href="{{ url_for('admin.reservation_list', search=search) }}"
-                       style="padding:11px 24px; border-radius:8px; border:1px solid #333; background:transparent; color:#ccc; font-size:14px; text-decoration:none; display:inline-block;">
-                        Reset
-                    </a>
-                </form>
-
-                <a href="{{ url_for('admin.new_offline_reservation_page') }}" class="add-reservation-btn" title="Tambah Reservasi Offline" style="margin-left:auto;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-                </a>
-            </div>
-
-            <div class="panel-card">
-                <div class="panel-header">
-                    <h2>Recent Reservations</h2>
-                    <form method="GET" class="panel-search">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M21 21l-4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                        <input type="text" name="search" placeholder="Search Transaksi..." value="{{ search }}">
-                    </form>
-                    <a href="#" class="panel-view-all">View All</a>
-                </div>
-
-                <table class="reservation-table">
-                    <thead>
-                        <tr>
-                            <th>Booking ID</th>
-                            <th>Customer</th>
-                            <th>Station</th>
-                            <th>Slot</th>
-                            <th>Metode Pembayaran</th>
-                            <th>Total Bayar</th>
-                            <th>Status</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for r in reservations %}
-                        <tr>
-                            <td class="cell-booking-id">#{{ r.booking_number }}</td>
-                            <td>{{ r.customer_display_name }}</td>
-                            <td>{{ r.room.room_code }}</td>
-                            <td class="cell-slot">
-                                {{ r.start_time.strftime("%H:%M") }}<br>&ndash;<br>{{ r.end_time.strftime("%H:%M") }}
-                            </td>
-                            <td>
-                                {% if r.payment %}
-                                    {% if r.payment.method == 'cashless' %}
-                                        QRIS
-                                    {% elif r.payment.method == 'cash' %}
-                                        Cash
+                                    {% if category == 'success' %}
+                                        background: #1a3a22;
+                                        color: #8aff9a;
+                                    {% elif category == 'danger' %}
+                                        background: #3a1a1a;
+                                        color: #ff8a8a;
                                     {% else %}
-                                        {{ r.payment.method | title }}
+                                        background: #1a2a3a;
+                                        color: #8ad9ff;
                                     {% endif %}
-                                {% else %}
-                                    <span style="color:#666;">&mdash;</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                Rp {{ "{:,.0f}".format(r.total_price | float) }}
-                            </td>
-                            <td>
-                                {% if r.display_status == 'arrived' %}
-                                    <span class="badge badge-arrived">Arrived</span>
-                                {% elif r.display_status == 'confirmed' %}
-                                    <span class="badge badge-confirmed">Confirmed</span>
-                                {% elif r.display_status == 'pending' %}
-                                    <span class="badge badge-pending">Pending</span>
-                                {% elif r.display_status == 'cancelled' %}
-                                    <span class="badge badge-cancelled">Cancelled</span>
-                                {% else %}
-                                    <span class="badge badge-completed">Completed</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if r.status == 'confirmed' and not r.is_arrived %}
-                                <form action="{{ url_for('admin.mark_arrived', reservation_id=r.id) }}" method="POST" style="display:inline;">
-                                    <button type="submit" class="row-action-btn">Mark Arrived</button>
-                                </form>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="8" class="empty-row">Belum ada reservasi.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                "
+          >
+            {{ message }}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %} {% endwith %}
+
+        <!-- FILTER TOOLBAR -->
+        <div
+          class="reservation-toolbar"
+          style="
+            align-items: flex-end;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+          "
+        >
+          <form
+            method="GET"
+            id="date-filter-form"
+            action="{{ url_for('admin.reservation_list') }}"
+            style="
+              display: flex;
+              align-items: flex-end;
+              gap: 16px;
+              flex-wrap: wrap;
+            "
+          >
+            {% if search %}
+            <input type="hidden" name="search" value="{{ search }}" />
+            {% endif %}
+
+            <div>
+              <label
+                for="filter-start-date"
+                style="
+                  display: block;
+                  color: #aaa;
+                  font-size: 13px;
+                  margin-bottom: 6px;
+                "
+              >
+                Dari tanggal
+              </label>
+
+              <input
+                type="date"
+                id="filter-start-date"
+                name="start_date"
+                value="{{ start_date or '' }}"
+                style="
+                  padding: 10px 12px;
+                  border-radius: 8px;
+                  border: 1px solid #333;
+                  background: #15151d;
+                  color: #fff;
+                  font-size: 14px;
+                "
+              />
             </div>
-        </main>
+
+            <div>
+              <label
+                for="filter-end-date"
+                style="
+                  display: block;
+                  color: #aaa;
+                  font-size: 13px;
+                  margin-bottom: 6px;
+                "
+              >
+                Sampai tanggal
+              </label>
+
+              <input
+                type="date"
+                id="filter-end-date"
+                name="end_date"
+                value="{{ end_date or '' }}"
+                style="
+                  padding: 10px 12px;
+                  border-radius: 8px;
+                  border: 1px solid #333;
+                  background: #15151d;
+                  color: #fff;
+                  font-size: 14px;
+                "
+              />
+            </div>
+
+            <button
+              type="submit"
+              style="
+                padding: 11px 24px;
+                border-radius: 8px;
+                border: none;
+                background: #e94dd1;
+                color: #fff;
+                font-weight: 600;
+                cursor: pointer;
+                font-size: 14px;
+              "
+            >
+              Terapkan
+            </button>
+
+            <a
+              href="{{ url_for('admin.reservation_list') }}"
+              style="
+                padding: 11px 24px;
+                border-radius: 8px;
+                border: 1px solid #333;
+                background: transparent;
+                color: #ccc;
+                font-size: 14px;
+                text-decoration: none;
+                display: inline-block;
+              "
+            >
+              Reset
+            </a>
+          </form>
+
+          <a
+            href="{{ url_for('admin.new_offline_reservation_page') }}"
+            class="add-reservation-btn"
+            title="Tambah Reservasi Offline"
+            style="margin-left: auto"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 5v14M5 12h14"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+              />
+            </svg>
+          </a>
+        </div>
+
+        <!-- RESERVATION PANEL -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h2>Recent Reservations</h2>
+
+            <!-- SEARCH FORM -->
+            <form
+              method="GET"
+              action="{{ url_for('admin.reservation_list') }}"
+              class="panel-search"
+            >
+              {% if start_date %}
+              <input type="hidden" name="start_date" value="{{ start_date }}" />
+              {% endif %} {% if end_date %}
+              <input type="hidden" name="end_date" value="{{ end_date }}" />
+              {% endif %}
+
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="11"
+                  cy="11"
+                  r="7"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                />
+
+                <path
+                  d="M21 21l-4-4"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+
+              <input
+                type="text"
+                name="search"
+                placeholder="Search Transaksi..."
+                value="{{ search or '' }}"
+              />
+            </form>
+
+            <a
+              href="{{ url_for('admin.reservation_list') }}"
+              class="panel-view-all"
+            >
+              View All
+            </a>
+          </div>
+
+          {% if pagination %}
+          <div class="reservation-result-info">
+            Menampilkan {{ pagination.first if pagination.total else 0 }} – {{
+            pagination.last if pagination.total else 0 }} dari {{
+            pagination.total }} reservasi
+          </div>
+          {% endif %}
+
+          <div class="reservation-table-wrapper">
+            <table class="reservation-table">
+              <thead>
+                <tr>
+                  <th>Booking ID</th>
+                  <th>Customer</th>
+                  <th>Station</th>
+                  <th>Slot</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {% for r in reservations %}
+                <tr>
+                  <td class="cell-booking-id">
+                    #{{ r.booking_number or r.id }}
+                  </td>
+
+                  <td>{{ r.customer_display_name }}</td>
+
+                  <td>{{ r.room.room_code if r.room else '—' }}</td>
+
+                  <td class="cell-slot">
+                    {% if r.start_time and r.end_time %} {{
+                    r.start_time.strftime("%d/%m/%Y") }}
+                    <br />
+                    {{ r.start_time.strftime("%H:%M") }} &ndash; {{
+                    r.end_time.strftime("%H:%M") }} {% else %} — {% endif %}
+                  </td>
+
+                  <td>
+                    {% if r.display_status == 'arrived' %}
+                    <span class="badge badge-arrived"> Arrived </span>
+
+                    {% elif r.display_status == 'confirmed' %}
+                    <span class="badge badge-confirmed"> Confirmed </span>
+
+                    {% elif r.display_status == 'pending' %}
+                    <span class="badge badge-pending"> Pending </span>
+
+                    {% elif r.display_status == 'cancelled' %}
+                    <span class="badge badge-cancelled"> Cancelled </span>
+
+                    {% else %}
+                    <span class="badge badge-completed"> Completed </span>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {% if r.status == 'confirmed' and not r.is_arrived %}
+                    <form
+                      action="{{ url_for(
+                                                    'admin.mark_arrived',
+                                                    reservation_id=r.id
+                                                ) }}"
+                      method="POST"
+                      style="display: inline"
+                    >
+                      <button type="submit" class="row-action-btn">
+                        Mark Arrived
+                      </button>
+                    </form>
+                    {% endif %}
+                  </td>
+                </tr>
+
+                {% else %}
+                <tr>
+                  <td colspan="6" class="empty-row">Belum ada reservasi.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- PAGINATION -->
+          {% if pagination and pagination.pages > 1 %}
+          <nav class="admin-pagination" aria-label="Navigasi halaman reservasi">
+            {% if pagination.has_prev %}
+            <a
+              class="admin-pagination__button"
+              href="{{ url_for(
+                                    'admin.reservation_list',
+                                    page=pagination.prev_num,
+                                    search=search,
+                                    start_date=start_date,
+                                    end_date=end_date
+                                ) }}"
+            >
+              ← Sebelumnya
+            </a>
+            {% else %}
+            <span class="admin-pagination__disabled"> ← Sebelumnya </span>
+            {% endif %}
+
+            <span class="admin-pagination__info">
+              Halaman {{ pagination.page }} dari {{ pagination.pages }}
+            </span>
+
+            {% if pagination.has_next %}
+            <a
+              class="admin-pagination__button"
+              href="{{ url_for(
+                                    'admin.reservation_list',
+                                    page=pagination.next_num,
+                                    search=search,
+                                    start_date=start_date,
+                                    end_date=end_date
+                                ) }}"
+            >
+              Berikutnya →
+            </a>
+            {% else %}
+            <span class="admin-pagination__disabled"> Berikutnya → </span>
+            {% endif %}
+          </nav>
+          {% endif %}
+        </div>
+      </main>
     </div>
-</body>
+  </body>
 </html>
